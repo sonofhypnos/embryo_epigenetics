@@ -149,8 +149,9 @@ class BisulfiteAnalyzer:
         # > warned.
         # So we will not set a higher value to not overload the memory
         # NOTE: (according to the above, 8 should already use ~90 GB, I saw it using 60GB (could have been higher when I wasn't looking))
+        # FIXME: score_min might be too lenient, we should check what typical values here for bisulfite sequencing are
 
-        cmd = f"bismark --parallel 8 --output_dir {output_dir} --genome {reference_genome} -1 {trimmed1} -2 {trimmed2}"
+        cmd = f"bismark --parallel 8 --output_dir {output_dir} --genome {reference_genome} -1 {trimmed1} -2 {trimmed2} --score_min L,0,-5.0"
         subprocess.run(cmd, shell=True, check=True)
 
         # Find the generated BAM file
