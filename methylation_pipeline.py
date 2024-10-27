@@ -11,10 +11,16 @@ cpu_count = multiprocessing.cpu_count()
 
 cpu_count_safety_margin = max([cpu_count - 4, (cpu_count * 3) // 4 ])
 
+# TODO: check tradeoffs between using a more variable reference genome (leads to
+# possibly non-unique reads and more computationally expensive (the non-unique
+# part seems like that would be desirable, because we then know that at that
+# part it was ambigous)) and using more lenient parameters for the matching with bismark
 # TODO: for every shell command we use, check if we are using a parallel version
 # TODO: delete fastq files after checking integrity of the trimmed files
 # TODO: understand what bismark 2 bed graph does and if that is something we need
 # TODO: get a deeper understanding of the types of algorithms we are using here and if we have different alternatives
+# TODO: check that fq_C_to_T files that were in the root directory of the project would have needed to be somewhere else
+# TODO: check if we can save space by using gziped versions of the files with bismark
 
 class BisulfiteAnalyzer:
     def __init__(self, output_dir="methylation_analysis"):
@@ -193,18 +199,18 @@ def analyze_methylation(sra_files, reference_genome, genes_of_interest, gene_coo
     
     for sra_file in sra_files:
         base_name = os.path.basename(sra_file)
-        # print(f"\nProcessing {base_name}...")
+        print(f"\nProcessing {base_name}...")
 
-        # # Convert SRA to FASTQ (if needed)
-        # fastq1, fastq2 = analyzer.run_fastq_dump(sra_file)
+        # Convert SRA to FASTQ (if needed)
+        fastq1, fastq2 = analyzer.run_fastq_dump(sra_file)
 
-        # print(f"Done with fastq conversion")
-        # # Quality control and trimming (if needed)
-        # trimmed1, trimmed2 = analyzer.run_trim_galore(fastq1, fastq2)
-        # print(f"Done with Quality control and trimming")
+        print(f"Done with fastq conversion")
+        # Quality control and trimming (if needed)
+        trimmed1, trimmed2 = analyzer.run_trim_galore(fastq1, fastq2)
+        print(f"Done with Quality control and trimming")
 
-        # # Alignment (if needed)
-        # bam_file = analyzer.run_bismark_alignment(trimmed1, trimmed2, reference_genome)
+        # Alignment (if needed)
+        bam_file = analyzer.run_bismark_alignment(trimmed1, trimmed2, reference_genome)
         # TODO: fix that bam file is not returned correctly
         # TODO: make sure we have enough space for intermediate files
         bam_file = "methylation_analysis/aligned/SRR6228477_1_val_1_bismark_bt2_pe.bam"
