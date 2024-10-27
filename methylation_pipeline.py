@@ -6,6 +6,7 @@ import os
 import json
 from datetime import datetime
 import multiprocessing
+import glob
 
 cpu_count = multiprocessing.cpu_count()
 
@@ -15,11 +16,15 @@ cpu_count_safety_margin = max([cpu_count - 4, (cpu_count * 3) // 4 ])
 # possibly non-unique reads and more computationally expensive (the non-unique
 # part seems like that would be desirable, because we then know that at that
 # part it was ambigous)) and using more lenient parameters for the matching with bismark
+# TODO: given that my quality scores are this high, I think I want to try it
+# with the alternative genome version (although perhaps first check how other
+# people do this step online)
 # TODO: for every shell command we use, check if we are using a parallel version
 # TODO: delete fastq files after checking integrity of the trimmed files
 # TODO: understand what bismark 2 bed graph does and if that is something we need
 # TODO: get a deeper understanding of the types of algorithms we are using here and if we have different alternatives
 # TODO: check that fq_C_to_T files that were in the root directory of the project would have needed to be somewhere else
+# TODO: make sure we have enough space for intermediate files
 # TODO: check if we can save space by using gziped versions of the files with bismark
 
 class BisulfiteAnalyzer:
@@ -91,17 +96,24 @@ class BisulfiteAnalyzer:
         subprocess.run(cmd, shell=True, check=True)
         self.save_checkpoint(base_name, "trim_galore")
         return trimmed1, trimmed2
-    
+
+    def find_latest_bam(self, output_dir, base_name):
+        """Find the most recent BAM file matching the base pattern"""
+        pattern = os.path.join(output_dir, f"{base_name}*_bismark_bt2_pe.bam")
+        bam_files = glob.glob(pattern)
+        if not bam_files:
+            return None
+        return max(bam_files, key=os.path.getctime)
+
+
     def run_bismark_alignment(self, trimmed1, trimmed2, reference_genome):
-        """Align reads using Bismark"""
         output_dir = os.path.join(self.output_dir, "aligned")
         os.makedirs(output_dir, exist_ok=True)
-        
+
         base_name = os.path.basename(trimmed1).replace("_1_val_1.fq", "")
-        bam_file = os.path.join(output_dir, f"{base_name}_bismark_bt2.bam")
-        
-        # Skip if file exists and stage is completed
-        if os.path.exists(bam_file) and self.get_stage(base_name) == "bismark":
+        bam_file = self.find_latest_bam(output_dir, base_name)
+
+        if bam_file and os.path.exists(bam_file) and self.get_stage(base_name) == "bismark":
             print(f"Skipping bismark alignment for {base_name} - already processed")
             return bam_file
 
@@ -121,9 +133,14 @@ class BisulfiteAnalyzer:
         # So we will not set a higher value to not overload the memory
         # NOTE: (according to the above, 8 should already use ~90 GB, I saw it using 60GB (could have been higher when I wasn't looking))
 
-
         cmd = f"bismark --parallel 8 --output_dir {output_dir} --genome {reference_genome} -1 {trimmed1} -2 {trimmed2}"
         subprocess.run(cmd, shell=True, check=True)
+
+        # Find the generated BAM file
+        bam_file = self.find_latest_bam(output_dir, base_name)
+        if not bam_file:
+            raise FileNotFoundError(f"BAM file not found for {base_name}")
+
         self.save_checkpoint(base_name, "bismark")
         return bam_file
     
@@ -211,9 +228,6 @@ def analyze_methylation(sra_files, reference_genome, genes_of_interest, gene_coo
 
         # Alignment (if needed)
         bam_file = analyzer.run_bismark_alignment(trimmed1, trimmed2, reference_genome)
-        # TODO: fix that bam file is not returned correctly
-        # TODO: make sure we have enough space for intermediate files
-        bam_file = "methylation_analysis/aligned/SRR6228477_1_val_1_bismark_bt2_pe.bam"
         print(f"done with alignment")
         
         # Methylation analysis (if needed)
