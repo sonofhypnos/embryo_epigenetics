@@ -12,6 +12,8 @@ cpu_count = multiprocessing.cpu_count()
 
 cpu_count_safety_margin = max([cpu_count - 4, (cpu_count * 3) // 4 ])
 
+# TODO: the bismark reference recommends a deduplication step for full genome
+# sequencing (not for RRBS). Learn what that is useful for? (and then add it to our pipeline)
 # TODO: check tradeoffs between using a more variable reference genome (leads to
 # possibly non-unique reads and more computationally expensive (the non-unique
 # part seems like that would be desirable, because we then know that at that
@@ -26,6 +28,7 @@ cpu_count_safety_margin = max([cpu_count - 4, (cpu_count * 3) // 4 ])
 # TODO: check that fq_C_to_T files that were in the root directory of the project would have needed to be somewhere else
 # TODO: make sure we have enough space for intermediate files
 # TODO: check if we can save space by using gziped versions of the files with bismark
+# NOTE: on overall performance: it seems like the trimming is also taking quite a few minutes, but nowhere near as much time as the alignment step
 
 class BisulfiteAnalyzer:
     def __init__(self, output_dir="methylation_analysis"):
@@ -55,9 +58,17 @@ class BisulfiteAnalyzer:
         with open(self.checkpoint_file, 'w') as f:
             json.dump(self.checkpoint, f, indent=2)
     
+    # def get_stage(self, sra_file):
+    #     """Get the last completed stage for a file"""
+    #     return self.checkpoint["processed_files"].get(sra_file, {}).get("stage", None)
     def get_stage(self, sra_file):
-        """Get the last completed stage for a file"""
-        return self.checkpoint["processed_files"].get(sra_file, {}).get("stage", None)
+        """Return list of all completed stages for a file"""
+        stages = []
+        for file, info in self.checkpoint["processed_files"].items():
+            if file.startswith(sra_file):  # Match files that start with the SRA ID
+                stages.append(info.get("stage"))
+        return stages
+
 
     def run_fastq_dump(self, sra_file):
         """Convert SRA to FASTQ format"""
@@ -79,7 +90,7 @@ class BisulfiteAnalyzer:
         return fastq1, fastq2
     
     def run_trim_galore(self, fastq1, fastq2):
-        """Trim adapters and low-quality sequences"""
+        """Trim adapters and low-quality sequences."""
         output_dir = os.path.join(self.output_dir, "trimmed")
         os.makedirs(output_dir, exist_ok=True)
         
@@ -88,7 +99,7 @@ class BisulfiteAnalyzer:
         trimmed2 = os.path.join(output_dir, f"{base_name}_2_val_2.fq")
         
         # Skip if files exist and stage is completed
-        if os.path.exists(trimmed1) and os.path.exists(trimmed2) and self.get_stage(base_name) == "trim_galore":
+        if os.path.exists(trimmed1) and os.path.exists(trimmed2) and "trim_galore" in self.get_stage(base_name):
             print(f"Skipping trim_galore for {base_name} - already processed")
             return trimmed1, trimmed2
         
@@ -98,12 +109,18 @@ class BisulfiteAnalyzer:
         return trimmed1, trimmed2
 
     def find_latest_bam(self, output_dir, base_name):
-        """Find the most recent BAM file matching the base pattern"""
+        """Find the final BAM file, excluding temporary files"""
+        # Pattern for final BAM file (no .temp. in name)
         pattern = os.path.join(output_dir, f"{base_name}*_bismark_bt2_pe.bam")
         bam_files = glob.glob(pattern)
-        if not bam_files:
+
+        # Filter out temporary files
+        final_bams = [f for f in bam_files if '.temp.' not in f]
+
+        if not final_bams:
             return None
-        return max(bam_files, key=os.path.getctime)
+        return final_bams[0]
+
 
 
     def run_bismark_alignment(self, trimmed1, trimmed2, reference_genome):
@@ -113,7 +130,7 @@ class BisulfiteAnalyzer:
         base_name = os.path.basename(trimmed1).replace("_1_val_1.fq", "")
         bam_file = self.find_latest_bam(output_dir, base_name)
 
-        if bam_file and os.path.exists(bam_file) and self.get_stage(base_name) == "bismark":
+        if bam_file and os.path.exists(bam_file) and "bismark" in self.get_stage(bam_file):
             print(f"Skipping bismark alignment for {base_name} - already processed")
             return bam_file
 
@@ -141,71 +158,82 @@ class BisulfiteAnalyzer:
         if not bam_file:
             raise FileNotFoundError(f"BAM file not found for {base_name}")
 
-        self.save_checkpoint(base_name, "bismark")
+        self.save_checkpoint(bam_file, "bismark")
         return bam_file
     
     def extract_methylation(self, bam_file, genes_of_interest, gene_coords):
-        """Extract methylation data for specific genes"""
         output_dir = os.path.join(self.output_dir, "methylation")
         os.makedirs(output_dir, exist_ok=True)
-        
-        base_name = os.path.basename(bam_file).replace("_bismark_bt2.bam", "")
+
+        base_name = os.path.basename(bam_file).replace("_bismark_bt2_pe.bam", "")
         methylation_file = os.path.join(output_dir, f"{base_name}_methylation.txt")
-        
-        # Skip if file exists and stage is completed
-        if os.path.exists(methylation_file) and self.get_stage(base_name) == "methylation":
+
+        if os.path.exists(methylation_file) and "methylation" in self.get_stage(base_name):
             print(f"Loading existing methylation data for {base_name}")
             return self.load_methylation_results(methylation_file)
 
         # Extract methylation data
-        cmd = f"bismark_methylation_extractor --parallel {max([cpu_count_safety_margin // 3, 1])} --comprehensive --output {output_dir} {bam_file}"
-        # NOTE: on --parallel:
-        #> May also be --multicore <int>. Sets the number of cores to be used for the methylation extraction process.
-        #> If system resources are plentiful this is a viable option to speed up the extraction process (we observed a
-        #> near linear speed increase for up to 10 cores used). Please note that a typical process of extracting a BAM file
-        #> and writing out '.gz' output streams will in fact use ~3 cores per value of --parallel <int>
-        #> specified (1 for the methylation extractor itself, 1 for a Samtools stream, 1 for GZIP stream), so
-        #> --parallel 10 is likely to use around 30 cores of system resources. This option has no bearing
-        #> on the bismark2bedGraph or genome-wide cytosine report processes.
-        subprocess.run(cmd, shell=True, check=True)
-        
+        print(f"Extracting methylation data from {bam_file}")
+        extract_cmd = f"bismark_methylation_extractor --parallel {max([cpu_count_safety_margin // 3, 1])} --comprehensive --bedGraph --output {output_dir} {bam_file}"
+        subprocess.run(extract_cmd, shell=True, check=True)
+
+        # Find the generated bedGraph file
+        bedgraph_file = glob.glob(os.path.join(output_dir, f"*{base_name}*.bedGraph.gz"))[0]
+
         # Analyze for each gene
         methylation_data = {}
         for gene in genes_of_interest:
-            gene_bed = gene_coords[gene]
-            cmd = f"bedtools intersect -a {methylation_file} -b {gene_bed}"
+            if not os.path.exists(gene_coords[gene]):
+                print(f"Warning: BED file not found for {gene}: {gene_coords[gene]}")
+                continue
+
+            print(f"Analyzing methylation for {gene}")
+            # Use zcat for gzipped files and pipe to bedtools
+            cmd = f"zcat {bedgraph_file} | bedtools intersect -a - -b {gene_coords[gene]}"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+
+            if result.stderr:
+                print(f"Warning for {gene}: {result.stderr}")
+
             methylation_data[gene] = self.parse_methylation_output(result.stdout)
-        
+            print(f"Found {methylation_data[gene]['total_sites']} sites for {gene}")
+
         # Save results
         with open(methylation_file, 'w') as f:
             json.dump(methylation_data, f, indent=2)
-        
+
         self.save_checkpoint(base_name, "methylation")
         return methylation_data
-    
+
     @staticmethod
     def parse_methylation_output(methylation_text):
         """Parse methylation data and calculate statistics"""
         total_sites = 0
-        methylated_sites = 0
-        
-        for line in methylation_text.split('\n'):
-            if line:
-                fields = line.split('\t')
+        methylated_count = 0
+        total_coverage = 0
+
+        for line in methylation_text.splitlines():
+            if not line.strip():
+                continue
+
+            fields = line.split('\t')
+            if len(fields) >= 4:  # Ensure we have enough fields
+                coverage = int(fields[3])
+                methyl_percent = float(fields[4])
+
                 total_sites += 1
-                if fields[3] == 'methylated':
-                    methylated_sites += 1
-        
+                total_coverage += coverage
+                methylated_count += (coverage * methyl_percent / 100)
+
         return {
             'total_sites': total_sites,
-            'methylated_sites': methylated_sites,
-            'methylation_percentage': (methylated_sites/total_sites*100) if total_sites > 0 else 0
+            'total_coverage': total_coverage,
+            'methylated_sites': methylated_count,
+            'methylation_percentage': (methylated_count/total_coverage*100) if total_coverage > 0 else 0
         }
-    
+
     @staticmethod
     def load_methylation_results(methylation_file):
-        """Load previously calculated methylation results"""
         with open(methylation_file, 'r') as f:
             return json.load(f)
 

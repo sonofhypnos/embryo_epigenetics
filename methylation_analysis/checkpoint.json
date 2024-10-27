@@ -5,8 +5,8 @@
       "timestamp": "2024-10-26T17:23:54.856078"
     },
     "SRR6228477": {
-      "stage": "bismark",
-      "timestamp": "2024-10-26T18:56:59.404495"
+      "stage": "trim_galore",
+      "timestamp": "2024-10-27T17:52:00.051520"
     },
     "SRR6228477_1_val_1_bismark_bt2_pe.bamd": {
       "stage": "methylation",
@@ -15,6 +15,14 @@
     "SRR6228477_1_val_1_bismark_bt2_pe.bam": {
       "stage": "methylation",
       "timestamp": "2024-10-27T09:52:03.247786"
+    },
+    "methylation_analysis/aligned/SRR6228477_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-27T17:52:00.051520"
+    },
+    "SRR6228477_1_val_1": {
+      "stage": "methylation",
+      "timestamp": "2024-10-27T18:07:31.012427"
     }
   }
 }
