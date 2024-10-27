@@ -1,0 +1,20 @@
+{
+  "processed_files": {
+    "/home/ubuntu/sra_data/sra/SRR6228477.sra": {
+      "stage": "fastq_dump",
+      "timestamp": "2024-10-26T17:23:54.856078"
+    },
+    "SRR6228477": {
+      "stage": "bismark",
+      "timestamp": "2024-10-26T18:56:59.404495"
+    },
+    "SRR6228477_1_val_1_bismark_bt2_pe.bamd": {
+      "stage": "methylation",
+      "timestamp": "2024-10-26T20:43:53.851512"
+    },
+    "SRR6228477_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "methylation",
+      "timestamp": "2024-10-27T09:52:03.247786"
+    }
+  }
+}
