@@ -161,7 +161,7 @@ class BisulfiteAnalyzer:
         self.save_checkpoint(bam_file, "bismark")
         return bam_file
     
-    def extract_methylation(self, bam_file, genes_of_interest, gene_coords):
+    def extract_methylation(self, bam_file, genes_of_interest, gene_coords, mapping_file):
         output_dir = os.path.join(self.output_dir, "methylation")
         os.makedirs(output_dir, exist_ok=True)
 
@@ -180,7 +180,11 @@ class BisulfiteAnalyzer:
         # Find the generated bedGraph file
         bedgraph_file = glob.glob(os.path.join(output_dir, f"*{base_name}*.bedGraph.gz"))[0]
 
-        # Analyze for each gene
+        # Convert coordinates to genomic positions
+        converted_bedgraph = os.path.join(output_dir, f"{base_name}_converted.bedGraph")
+        converted_file = convert_methylation_coordinates(bedgraph_file, mapping_file, converted_bedgraph)
+
+        # Use converted coordinates for intersection
         methylation_data = {}
         for gene in genes_of_interest:
             if not os.path.exists(gene_coords[gene]):
@@ -188,8 +192,7 @@ class BisulfiteAnalyzer:
                 continue
 
             print(f"Analyzing methylation for {gene}")
-            # Use zcat for gzipped files and pipe to bedtools
-            cmd = f"zcat {bedgraph_file} | bedtools intersect -a - -b {gene_coords[gene]}"
+            cmd = f"bedtools intersect -a {converted_file} -b {gene_coords[gene]}"
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
 
             if result.stderr:
