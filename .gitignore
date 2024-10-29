@@ -1,8 +1,8 @@
 # data files
 methylation_analysis/aligned
-methylation_analysis/fastq
 methylation_analysis/methylation
 methylation_analysis/trimmed
 
+fastq
 # Emacs backup files
 *~
