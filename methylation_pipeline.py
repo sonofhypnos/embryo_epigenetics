@@ -94,11 +94,42 @@ class BisulfiteAnalyzer:
 
         # NOTE: in the paper they note clipping 6
         # NOTE: I will see if not clipping at all is better
-        #
+        # NOTE: --polyA should filter the polyA sequences. This setting was reported as experimental though, so maybe look for alternatives!
+        # NOTE: we might still want to save polyA sequences (like in this example:)
+        # PLEASE NOTE: The poly-A trimming mode expects that sequences were both adapter and quality trimmed
+                        # before looking for Poly-A tails, and it is the user's responsibility to carry out an initial round of
+                        # trimming. The following sequence:
+
+                        # 1) trim_galore file.fastq.gz
+                        # 2) trim_galore --polyA file_trimmed.fq.gz
+                        # 3) zcat file_trimmed_trimmed.fq.gz | grep -A 3 PolyA | grep -v ^-- > PolyA_trimmed.fastq
+
+        # FIXME: we don't know why we have so many polyA sequences in our data! (check why)
         # cmd = f"trim_galore  --paired --length 20 --clip_R1 6 --clip_R2 6 --cores 8 --output_dir {output_dir} {fastq1} {fastq2}"
-        cmd = f"trim_galore  --paired --cores 8 --output_dir {output_dir} {fastq1} {fastq2}"
+        # NOTE: we clip the sequences since we saw bias in the sequences when using fastqc (and the original paper also made this decision)
+        temp1 = "final_trimmed1.fq.gz"
+        temp2 = "final_trimmed2.fq.gz"
+        cmd = (
+            f"trim_galore --paired --cores 8 --clip_R1 6 --clip_R2 6 --three_prime_clip_R1 1 --three_prime_clip_R2 1 "
+            f"--output_dir {output_dir} {fastq1} {fastq2} "
+            f"&& trim_galore --paired --polyA {trimmed1} {trimmed2} "
+            f"&& cutadapt -a 'T{{10}}' -A 'T{{10}}' -g 'T{{10}}' -G 'T{{10}}' -m 20 "
+            f"-o {temp1} -p {temp2} {trimmed1} {trimmed2} "
+            f"&& mv {temp1} {trimmed1} "
+            f"&& mv {temp2} {trimmed2}"
+            f"&& cutadapt -a 'A{{10}}' -A 'A{{10}}' -g 'A{{10}}' -G 'A{{10}}' -m 20 "
+            f"-o {temp1} -p {temp2} {trimmed1} {trimmed2} "
+            f"&& mv {temp1} {trimmed1} "
+            f"&& mv {temp2} {trimmed2}"
+        )
+
+        # TODO: add a fastqc step inbetween that automatically checks with assertions whether we have any unwanted duplicates somewhere.
+
+
+
         subprocess.run(cmd, shell=True, check=True)
         self.save_checkpoint(base_name, "trim_galore")
+
         return trimmed1, trimmed2
 
     def find_latest_bam(self, output_dir, base_name):
