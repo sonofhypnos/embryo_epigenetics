@@ -12,6 +12,17 @@ cpu_count = multiprocessing.cpu_count()
 
 cpu_count_safety_margin = max([cpu_count - 4, (cpu_count * 3) // 4 ])
 
+#Note that it is not recommended to remove too-short sequences if the analysed FastQ file is one of a pair of paired-end files, since this confuses the sequence-by-sequence order of paired-end reads which is again required by many aligners. For paired-end files, Trim Galore! has an option --paired which runs a paired-end validation on both trimmed _1 and _2 FastQ files once the trimming has completed. This step removes entire read pairs if at least one of the two sequences became shorter than a certain threshold. If only one of the two reads is longer than the set threshold, e.g. when one read has very poor qualities throughout, this singleton read can be written out to unpaired files (see option retain_unpaired) which may be aligned in a single-end manner.
+
+# TODO: Use trim-galore properly (see documentation trim-galore): "for paired-end files, Trim
+# Galore! has an option --paired which runs a paired-end validation on both
+# trimmed _1 and _2 FastQ files once the trimming has completed. This step
+# removes entire read pairs if at least one of the two sequences became shorter
+# than a certain threshold. If only one of the two reads is longer than the set
+# threshold, e.g. when one read has very poor qualities throughout, this
+# singleton read can be written out to unpaired files (see option
+# retain_unpaired) which may be aligned in a single-end manner."
+# NOTE: it seems like making a custom index for our genes is in fact not that much faster? (we do need less memory-> we can go with a higher number of cores) (seems like we were in fact still using entire chromosomes and this is why it took that long!)
 # TODO: the bismark reference recommends a deduplication step for full genome
 # sequencing (not for RRBS). Learn what that is useful for? (and then add it to our pipeline)
 # TODO: check tradeoffs between using a more variable reference genome (leads to
@@ -76,8 +87,8 @@ class BisulfiteAnalyzer:
         # os.makedirs(output_dir, exist_ok=True)
 
         base_name = os.path.basename(sra_file)
-        fastq1 = os.path.join(output_dir, f"{base_name}_1.fastq")
-        fastq2 = os.path.join(output_dir, f"{base_name}_2.fastq")
+        fastq1 = os.path.join(output_dir, f"{base_name}_1.fastq.gz")
+        fastq2 = os.path.join(output_dir, f"{base_name}_2.fastq.gz")
         
         # # Skip if files exist and stage is completed
         # if os.path.exists(fastq1) and os.path.exists(fastq2) and self.get_stage(sra_file) == "fastq_dump":
@@ -94,16 +105,20 @@ class BisulfiteAnalyzer:
         output_dir = os.path.join(self.output_dir, "trimmed")
         os.makedirs(output_dir, exist_ok=True)
         
-        base_name = os.path.basename(fastq1).replace("_1.fastq", "")
-        trimmed1 = os.path.join(output_dir, f"{base_name}_1_val_1.fq")
-        trimmed2 = os.path.join(output_dir, f"{base_name}_2_val_2.fq")
+        base_name = os.path.basename(fastq1).replace("_1.fastq.gz", "")
+        trimmed1 = os.path.join(output_dir, f"{base_name}_1_val_1.fq.gz")
+        trimmed2 = os.path.join(output_dir, f"{base_name}_2_val_2.fq.gz")
         
         # Skip if files exist and stage is completed
         if os.path.exists(trimmed1) and os.path.exists(trimmed2) and "trim_galore" in self.get_stage(base_name):
             print(f"Skipping trim_galore for {base_name} - already processed")
             return trimmed1, trimmed2
-        
-        cmd = f"trim_galore --quality 20 --paired --cores {cpu_count_safety_margin} --output_dir {output_dir} {fastq1} {fastq2}"
+
+        # NOTE: in the paper they note clipping 6
+        # NOTE: I will see if not clipping at all is better
+        #
+        # cmd = f"trim_galore  --paired --length 20 --clip_R1 6 --clip_R2 6 --cores 8 --output_dir {output_dir} {fastq1} {fastq2}"
+        cmd = f"trim_galore  --paired --cores 8 --output_dir {output_dir} {fastq1} {fastq2}"
         subprocess.run(cmd, shell=True, check=True)
         self.save_checkpoint(base_name, "trim_galore")
         return trimmed1, trimmed2
@@ -151,7 +166,7 @@ class BisulfiteAnalyzer:
         # NOTE: (according to the above, 8 should already use ~90 GB, I saw it using 60GB (could have been higher when I wasn't looking))
         # FIXME: score_min might be too lenient, we should check what typical values here for bisulfite sequencing are
 
-        cmd = f"bismark --parallel 8 --output_dir {output_dir} --genome {reference_genome} -1 {trimmed1} -2 {trimmed2} --score_min L,0,-5.0"
+        cmd = f"bismark --parallel 8 --output_dir {output_dir} --genome {reference_genome} -1 {trimmed1} -2 {trimmed2} --score_min L,0,-0.6" #Using -0.6 since that is apparently a standard value
         subprocess.run(cmd, shell=True, check=True)
 
         # Find the generated BAM file
@@ -241,22 +256,29 @@ class BisulfiteAnalyzer:
         with open(methylation_file, 'r') as f:
             return json.load(f)
 
-def analyze_methylation(sra_files, reference_genome, genes_of_interest, gene_coords):
+def analyze_methylation(fastq_files, reference_genome, genes_of_interest, gene_coords, output_dir, input_dir="fastq"):
     """Main analysis function"""
-    analyzer = BisulfiteAnalyzer()
+
+    analyzer = BisulfiteAnalyzer(output_dir=output_dir)
     results = {}
     
-    for sra_file in sra_files:
-        base_name = os.path.basename(sra_file)
+    for fastq_file in fastq_files:
+        base_name = os.path.basename(fastq_file)
         print(f"\nProcessing {base_name}...")
 
-        # Convert SRA to FASTQ (if needed)
-        fastq1, fastq2 = analyzer.run_fastq_dump(sra_file)
 
-        print(f"Done with fastq conversion")
+        fastq1 = fastq_file
+        fastq2 = fastq1.replace("_1.fastq.gz", "_2.fastq.gz")
+        assert os.path.exists(fastq1)
+        print(fastq2)
+        assert os.path.exists(fastq2)
+
+        print(f"Done with fastq conversion: {fastq1}, {fastq2}")
         # Quality control and trimming (if needed)
         trimmed1, trimmed2 = analyzer.run_trim_galore(fastq1, fastq2)
         print(f"Done with Quality control and trimming")
+        # FIXME: only here because alignment is currently broken:
+        continue
 
         # Alignment (if needed)
         bam_file = analyzer.run_bismark_alignment(trimmed1, trimmed2, reference_genome)
@@ -267,12 +289,16 @@ def analyze_methylation(sra_files, reference_genome, genes_of_interest, gene_coo
     
     return results
 
-# Example usage
 if __name__ == "__main__":
     genes_of_interest = ['NANOG', 'KLF17', 'DPPA4', 'NANOG_promoter', 'KLF17_promoter', 'DPPA4_promoter']
     
-    # Define your file paths
-    sra_files = ['/home/ubuntu/sra_data/sra/SRR6228477']
+    # fastq_pattern = os.path.join(f"fastq/*_1.fastq.gz")
+    # fastq_files = glob.glob(fastq_pattern)
+
+    # TODO: add special case for sperm
+    # TODO: check we didn't miss any SRR files (check if left over files under ~/sra_data/ are present as fastq files)
+    fastq_files = [os.path.join(f"fastq/SRR6228411_1.fastq.gz")]
+
     reference_genome = '/home/ubuntu/sra_data/reference_genome/'
     gene_coords = {
         'NANOG': 'bedfiles/NANOG.bed',
@@ -282,12 +308,13 @@ if __name__ == "__main__":
         'KLF17_promoter': 'bedfiles/KLF17_promoter.bed',
         'DPPA4_promoter': 'bedfiles/DPPA4_promoter.bed',
     }
+    version = "1.0" # Added versioning to try different parameters
 
     assert len(genes_of_interest) == len(gene_coords)
     assert sorted(genes_of_interest) == sorted([x for x in gene_coords.keys()])
-    
+
     # Run analysis
-    results = analyze_methylation(sra_files, reference_genome, genes_of_interest, gene_coords)
+    results = analyze_methylation(fastq_files, reference_genome, genes_of_interest, gene_coords, f"methylation_analysis_{version}")
     
     # Create summary DataFrame
     summary_df = pd.DataFrame.from_dict(results, orient='index')
