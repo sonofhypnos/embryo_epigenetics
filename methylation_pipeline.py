@@ -70,9 +70,6 @@ class BisulfiteAnalyzer:
         with open(self.checkpoint_file, 'w') as f:
             json.dump(self.checkpoint, f, indent=2)
     
-    # def get_stage(self, sra_file):
-    #     """Get the last completed stage for a file"""
-    #     return self.checkpoint["processed_files"].get(sra_file, {}).get("stage", None)
     def get_stage(self, sra_file):
         """Return list of all completed stages for a file"""
         stages = []
@@ -81,26 +78,6 @@ class BisulfiteAnalyzer:
                 stages.append(info.get("stage"))
         return stages
 
-
-    def run_fastq_dump(self, sra_file):
-        """Convert SRA to FASTQ format"""
-        output_dir = os.path.join(self.output_dir, "fastq")
-        # os.makedirs(output_dir, exist_ok=True)
-
-        base_name = os.path.basename(sra_file)
-        fastq1 = os.path.join(output_dir, f"{base_name}_1.fastq.gz")
-        fastq2 = os.path.join(output_dir, f"{base_name}_2.fastq.gz")
-        
-        # # Skip if files exist and stage is completed
-        # if os.path.exists(fastq1) and os.path.exists(fastq2) and self.get_stage(sra_file) == "fastq_dump":
-        #     print(f"Skipping fastq-dump for {base_name} - already processed")
-        #     return fastq1, fastq2
-
-        # cmd = f"fastq-dump --split-files --outdir {output_dir} {sra_file}"
-        # subprocess.run(cmd, shell=True, check=True)
-        # self.save_checkpoint(sra_file, "fastq_dump")
-        return fastq1, fastq2
-    
     def run_trim_galore(self, fastq1, fastq2):
         """Trim adapters and low-quality sequences."""
         output_dir = os.path.join(self.output_dir, "trimmed")
@@ -143,7 +120,7 @@ class BisulfiteAnalyzer:
         output_dir = os.path.join(self.output_dir, "aligned")
         os.makedirs(output_dir, exist_ok=True)
 
-        base_name = os.path.basename(trimmed1).replace("_1_val_1.fq", "")
+        base_name = os.path.basename(trimmed1).replace("_1_val_1.fq.gz", "")
         bam_file = self.find_latest_bam(output_dir, base_name)
 
         if bam_file and os.path.exists(bam_file) and "bismark" in self.get_stage(bam_file):
@@ -170,10 +147,11 @@ class BisulfiteAnalyzer:
         cmd = f"bismark --parallel 8 --output_dir {output_dir} --genome {reference_genome} -1 {trimmed1} -2 {trimmed2} --score_min L,0,-0.6" #Using -0.6 since that is apparently a standard value
         subprocess.run(cmd, shell=True, check=True)
 
+
         # Find the generated BAM file
         bam_file = self.find_latest_bam(output_dir, base_name)
         if not bam_file:
-            raise FileNotFoundError(f"BAM file not found for {base_name}")
+            raise FileNotFoundError(f"BAM file ({bam_file}) not found for {base_name}")
 
         self.save_checkpoint(bam_file, "bismark")
         return bam_file
@@ -286,7 +264,7 @@ def analyze_methylation(fastq_files, reference_genome, genes_of_interest, gene_c
         print(f"done with alignment")
         
         # Methylation analysis (if needed)
-        results[base_name] = analyzer.extract_methylation(bam_file, genes_of_interest, gene_coords)
+        results[base_name] = analyzer.extract_methylation(bam_file, genes_of_interest, gene_coords, reference_genome)
     
     return results
 
@@ -298,7 +276,8 @@ if __name__ == "__main__":
 
     # TODO: add special case for sperm
     # TODO: check we didn't miss any SRR files (check if left over files under ~/sra_data/ are present as fastq files)
-    fastq_files = [os.path.join(f"fastq/SRR6228411_1.fastq.gz")]
+    #fastq_files = [os.path.join(f"fastq/SRR6228411_1.fastq.gz")]
+    fastq_files = [os.path.join(f"fastq/test_1.fastq.gz")]
 
     reference_genome = '/home/ubuntu/sra_data/reference_genome/'
     gene_coords = {

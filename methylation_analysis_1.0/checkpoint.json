@@ -1,8 +1,12 @@
 {
   "processed_files": {
-    "SRR6228411": {
+    "test": {
       "stage": "trim_galore",
-      "timestamp": "2024-10-29T11:26:25.290040"
+      "timestamp": "2024-10-29T20:20:30.979333"
+    },
+    "methylation_analysis_1.0/aligned/test_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-29T20:28:21.504181"
     }
   }
 }
