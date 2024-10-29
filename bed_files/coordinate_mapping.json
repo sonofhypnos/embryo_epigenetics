@@ -1,0 +1,72 @@
+{
+  "regions": {
+    "NANOG": {
+      "chrom": "chr12",
+      "orig_start": 7787793,
+      "orig_end": 7799146,
+      "custom_start": 0,
+      "custom_end": 11353
+    },
+    "NANOG_promoter": {
+      "chrom": "chr12",
+      "orig_start": 7785793,
+      "orig_end": 7787794,
+      "custom_start": 11353,
+      "custom_end": 13354
+    },
+    "KLF17": {
+      "chrom": "chr1",
+      "orig_start": 44118820,
+      "orig_end": 44135140,
+      "custom_start": 13353,
+      "custom_end": 29673
+    },
+    "KLF17_promoter": {
+      "chrom": "chr1",
+      "orig_start": 44116820,
+      "orig_end": 44118821,
+      "custom_start": 29673,
+      "custom_end": 31674
+    },
+    "DPPA4": {
+      "chrom": "chr3",
+      "orig_start": 109326143,
+      "orig_end": 109337546,
+      "custom_start": 31673,
+      "custom_end": 43076
+    },
+    "DPPA4_promoter": {
+      "chrom": "chr3",
+      "orig_start": 109337546,
+      "orig_end": 109339546,
+      "custom_start": 43076,
+      "custom_end": 45076
+    }
+  },
+  "index_map": {
+    "NANOG": {
+      "offset": 7787793,
+      "chrom": "chr12"
+    },
+    "NANOG_promoter": {
+      "offset": 7774440,
+      "chrom": "chr12"
+    },
+    "KLF17": {
+      "offset": 44105467,
+      "chrom": "chr1"
+    },
+    "KLF17_promoter": {
+      "offset": 44087147,
+      "chrom": "chr1"
+    },
+    "DPPA4": {
+      "offset": 109294470,
+      "chrom": "chr3"
+    },
+    "DPPA4_promoter": {
+      "offset": 109294470,
+      "chrom": "chr3"
+    }
+  }
+}
