@@ -6,15 +6,75 @@
     },
     "SRR6228477": {
       "stage": "trim_galore",
-      "timestamp": "2024-10-27T17:52:00.051520"
+      "timestamp": "2024-10-27T21:45:09.001667"
     },
-    "methylation_analysis/aligned/SRR6228477_1_val_1_bismark_bt2_pe.bam": {
-      "stage": "bismark",
-      "timestamp": "2024-10-27T17:52:00.051520"
+    "SRR5720828.gz": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-27T22:29:15.829740"
     },
-    "SRR6228477_1_val_1": {
-      "stage": "methylation",
-      "timestamp": "2024-10-27T18:19:10.719208"
+    "SRR5929277": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:22:53.367007"
+    },
+    "SRR5929276": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:26:51.875592"
+    },
+    "SRR5720829": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:29:50.343677"
+    },
+    "SRR5929283": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:32:24.618861"
+    },
+    "SRR5929280": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:35:23.484745"
+    },
+    "SRR5929278": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:38:22.963523"
+    },
+    "SRR5929282": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:41:01.650452"
+    },
+    "SRR5929279": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:43:29.382395"
+    },
+    "SRR5929281": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:46:26.737595"
+    },
+    "SRR5929275": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:49:21.717114"
+    },
+    "SRR5929274": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:52:39.611540"
+    },
+    "SRR5720831": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T16:55:26.923741"
+    },
+    "SRR6228528": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T18:29:49.253618"
+    },
+    "SRR6228500": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T18:36:29.454017"
+    },
+    "SRR6228578": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T18:42:56.826572"
+    },
+    "SRR6228520": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-28T18:49:28.082573"
     }
   }
 }

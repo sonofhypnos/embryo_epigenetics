@@ -14,6 +14,7 @@ cpu_count_safety_margin = max([cpu_count - 4, (cpu_count * 3) // 4 ])
 
 #Note that it is not recommended to remove too-short sequences if the analysed FastQ file is one of a pair of paired-end files, since this confuses the sequence-by-sequence order of paired-end reads which is again required by many aligners. For paired-end files, Trim Galore! has an option --paired which runs a paired-end validation on both trimmed _1 and _2 FastQ files once the trimming has completed. This step removes entire read pairs if at least one of the two sequences became shorter than a certain threshold. If only one of the two reads is longer than the set threshold, e.g. when one read has very poor qualities throughout, this singleton read can be written out to unpaired files (see option retain_unpaired) which may be aligned in a single-end manner.
 
+# TODO: add really simple tests for some of these steps
 # TODO: Use trim-galore properly (see documentation trim-galore): "for paired-end files, Trim
 # Galore! has an option --paired which runs a paired-end validation on both
 # trimmed _1 and _2 FastQ files once the trimming has completed. This step

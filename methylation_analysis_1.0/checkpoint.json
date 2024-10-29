@@ -1,0 +1,8 @@
+{
+  "processed_files": {
+    "SRR6228411": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-29T11:26:25.290040"
+    }
+  }
+}
