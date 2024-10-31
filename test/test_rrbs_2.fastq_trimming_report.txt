@@ -1,0 +1,138 @@
+
+SUMMARISING RUN PARAMETERS
+==========================
+Input filename: test_rrbs_2.fastq
+Trimming mode: paired-end
+Trim Galore version: 0.6.10
+Cutadapt version: 2.6
+Python version: could not detect
+Number of cores used for trimming: 8
+Quality Phred score cutoff: 20
+Quality encoding type selected: ASCII+33
+Using Illumina adapter for trimming (count: 3931). Second best hit was smallRNA (count: 0)
+Adapter sequence: 'AGATCGGAAGAGC' (Illumina TruSeq, Sanger iPCR; auto-detected)
+Maximum trimming error rate: 0.1 (default)
+Minimum required adapter overlap (stringency): 1 bp
+Minimum required sequence length for both reads before a sequence pair gets removed: 20 bp
+File was specified to be an MspI-digested RRBS sample. Read 1 sequences with adapter contamination will be trimmed a further 2 bp from their 3' end, and Read 2 sequences will be trimmed by 2 bp from their 5' end to remove potential methylation-biased bases from the end-repair reaction
+All Read 1 sequences will be trimmed by 4 bp from their 5' end to avoid poor qualities or biases
+All Read 2 sequences will be trimmed by 4 bp from their 5' end to avoid poor qualities or biases (e.g. M-bias for BS-Seq applications)
+All Read 1 sequences will be trimmed by 1 bp from their 3' end to avoid poor qualities or biases
+All Read 2 sequences will be trimmed by 1 bp from their 3' end to avoid poor qualities or biases
+
+
+This is cutadapt 2.6 with Python 3.7.16
+Command line parameters: -j 8 -e 0.1 -O 1 -a AGATCGGAAGAGC test_rrbs_2.fastq_qual_trimmed.fastq
+Processing reads on 8 cores in single-end mode ...
+Finished in 0.09 s (9 us/read; 6.34 M reads/minute).
+
+=== Summary ===
+
+Total reads processed:                  10,000
+Reads with adapters:                     7,319 (73.2%)
+Reads written (passing filters):        10,000 (100.0%)
+
+Total basepairs processed:       863,479 bp
+Total written (filtered):        706,293 bp (81.8%)
+
+=== Adapter 1 ===
+
+Sequence: AGATCGGAAGAGC; Type: regular 3'; Length: 13; Trimmed: 7319 times.
+
+No. of allowed errors:
+0-9 bp: 0; 10-13 bp: 1
+
+Bases preceding removed adapters:
+  A: 64.7%
+  C: 11.0%
+  G: 12.7%
+  T: 11.1%
+  none/other: 0.5%
+
+Overview of removed sequences
+length	count	expect	max.err	error counts
+1	2694	2500.0	0	2694
+2	87	625.0	0	87
+3	79	156.2	0	79
+4	62	39.1	0	62
+5	61	9.8	0	61
+6	71	2.4	0	71
+7	56	0.6	0	56
+8	66	0.2	0	66
+9	92	0.0	0	89 3
+10	54	0.0	1	53 1
+11	72	0.0	1	68 4
+12	69	0.0	1	66 3
+13	70	0.0	1	65 5
+14	106	0.0	1	100 6
+15	98	0.0	1	92 6
+16	72	0.0	1	67 5
+17	54	0.0	1	53 1
+18	79	0.0	1	73 6
+19	69	0.0	1	67 2
+20	64	0.0	1	63 1
+21	69	0.0	1	64 5
+22	68	0.0	1	62 6
+23	72	0.0	1	65 7
+24	78	0.0	1	72 6
+25	47	0.0	1	42 5
+26	91	0.0	1	80 11
+27	77	0.0	1	72 5
+28	71	0.0	1	63 8
+29	78	0.0	1	72 6
+30	179	0.0	1	165 14
+31	304	0.0	1	291 13
+32	79	0.0	1	74 5
+33	63	0.0	1	60 3
+34	54	0.0	1	51 3
+35	63	0.0	1	60 3
+36	62	0.0	1	60 2
+37	54	0.0	1	50 4
+38	60	0.0	1	57 3
+39	58	0.0	1	54 4
+40	52	0.0	1	51 1
+41	47	0.0	1	43 4
+42	58	0.0	1	51 7
+43	28	0.0	1	26 2
+44	46	0.0	1	40 6
+45	56	0.0	1	51 5
+46	35	0.0	1	32 3
+47	61	0.0	1	58 3
+48	65	0.0	1	62 3
+49	50	0.0	1	45 5
+50	48	0.0	1	45 3
+51	50	0.0	1	47 3
+52	33	0.0	1	32 1
+53	34	0.0	1	33 1
+54	34	0.0	1	30 4
+55	33	0.0	1	30 3
+56	36	0.0	1	34 2
+57	29	0.0	1	24 5
+58	36	0.0	1	31 5
+59	34	0.0	1	28 6
+60	40	0.0	1	35 5
+61	49	0.0	1	49
+62	73	0.0	1	71 2
+63	93	0.0	1	86 7
+64	111	0.0	1	96 15
+65	122	0.0	1	106 16
+66	129	0.0	1	109 20
+67	71	0.0	1	43 28
+68	39	0.0	1	36 3
+69	14	0.0	1	13 1
+70	4	0.0	1	4
+71	1	0.0	1	1
+72	1	0.0	1	1
+76	2	0.0	1	2
+96	1	0.0	1	0 1
+101	2	0.0	1	0 2
+
+RUN STATISTICS FOR INPUT FILE: test_rrbs_2.fastq
+=============================================
+10000 sequences processed in total
+Sequences were truncated to a varying degree because of deteriorating qualities (Phred score quality cutoff: 20):	2543 (25.4%)
+RRBS reads trimmed by additional 2 bp when adapter contamination was detected:	0 (0.0%)
+
+Total number of sequences analysed for the sequence pair length validation: 10000
+
+Number of sequence pairs removed because at least one read was shorter than the length cutoff (20 bp): 1403 (14.03%)
