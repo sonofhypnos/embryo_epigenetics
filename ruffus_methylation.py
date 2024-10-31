@@ -79,12 +79,13 @@ def align_bismark(input_files, output_file):
     trimmed1, trimmed2 = input_files
     output_dir = os.path.join(PARAMS['output_dir'], "aligned")
 
+    # We chose the score for score_min, because this value still gave sequences where the majority 75% of errors was due to C->T or A->G errors
     cmd = (
         f"bismark --parallel {PARAMS['cores_per_job']} "
         f"--output_dir {output_dir} "
         f"--genome {PARAMS['reference_genome']} "
         f"-1 {trimmed1} -2 {trimmed2} "
-        f"--score_min L,0,-0.6 --non_directional"
+        f"--score_min L,-0.6,-1.0 --non_directional"
     )
 
     try:
@@ -112,6 +113,7 @@ def main():
         # Run the pipeline
         pipeline_run(
             target_tasks=[align_bismark],
+            multiprocess=32,
             **pipeline_options
         )
     except Exception as e:
