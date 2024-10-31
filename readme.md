@@ -1,5 +1,7 @@
 # Next steps
 
+- [ ] I added ruffus for proper pipeline
+- [ ] added `bam_quality` script to check bam quality and find appropriate parameters for the scoring function for bowtie2 with bismark
 - [ ] add documentation on data and source files
 - [ ] At the end we probably want to export all of the data to an amazon bucket and then delete the SSD here. Unfortunately I did not document all of the steps of things to install (like all of the things I needed for bismark (I'll try to roughly list some of them here, so I can later do this in a script))
   - [ ] manually install igzip (./autoconf) (This worked, but there were like 4 steps inbetween where it would complain about some dependency not being installed, but installing them through apt just worked without any hiccups.)
