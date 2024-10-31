@@ -2,11 +2,143 @@
   "processed_files": {
     "test": {
       "stage": "trim_galore",
-      "timestamp": "2024-10-29T20:20:30.979333"
+      "timestamp": "2024-10-29T21:16:36.322924"
     },
     "methylation_analysis_1.0/aligned/test_1_val_1_bismark_bt2_pe.bam": {
       "stage": "bismark",
-      "timestamp": "2024-10-29T20:28:21.504181"
+      "timestamp": "2024-10-29T21:18:59.577996"
+    },
+    "SRR6228528": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-29T22:49:49.949701"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228528_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-29T23:05:21.652380"
+    },
+    "SRR6228500": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-29T23:58:44.056632"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228500_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T00:17:13.868227"
+    },
+    "SRR6228578": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T01:20:07.284750"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228578_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T01:43:05.829826"
+    },
+    "SRR6228520": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T02:47:46.347384"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228520_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T03:07:50.162295"
+    },
+    "SRR6228469": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T03:57:25.315024"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228469_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T04:12:15.190668"
+    },
+    "SRR5929407": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T05:05:13.031539"
+    },
+    "methylation_analysis_1.0/aligned/SRR5929407_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T05:24:07.943506"
+    },
+    "SRR6228618": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T06:36:58.031900"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228618_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T07:00:02.063648"
+    },
+    "SRR6228506": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T08:17:39.993763"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228506_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T08:38:45.349351"
+    },
+    "SRR5929420": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T09:34:46.286365"
+    },
+    "methylation_analysis_1.0/aligned/SRR5929420_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T09:51:57.389499"
+    },
+    "SRR5929419": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T10:48:40.051437"
+    },
+    "methylation_analysis_1.0/aligned/SRR5929419_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T11:07:33.180897"
+    },
+    "SRR6228426": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T12:08:01.671207"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228426_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T12:30:09.992522"
+    },
+    "SRR6228446": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T13:12:30.225192"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228446_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T13:25:34.912901"
+    },
+    "SRR6228476": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T14:13:54.065191"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228476_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T14:27:07.754850"
+    },
+    "SRR6228581": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T15:34:11.508509"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228581_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T15:58:52.183953"
+    },
+    "SRR6228613": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T16:54:39.003419"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228613_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T17:15:09.819303"
+    },
+    "SRR6228604": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T18:00:55.819537"
+    },
+    "methylation_analysis_1.0/aligned/SRR6228604_1_val_1_bismark_bt2_pe.bam": {
+      "stage": "bismark",
+      "timestamp": "2024-10-30T18:16:25.515711"
+    },
+    "SRR6228416": {
+      "stage": "trim_galore",
+      "timestamp": "2024-10-30T19:25:30.027485"
     }
   }
 }
