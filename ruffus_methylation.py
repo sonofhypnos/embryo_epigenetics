@@ -12,6 +12,7 @@ from ruffus import formatter as ruffus_formatter
 import sys
 import shutil
 import argparse
+import logging
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -47,9 +48,14 @@ def setup_output_dirs():
 
 def get_input_files():
     """Get input files based on test flag"""
-    # if OPTIONS.test:
-    return (glob.glob("fastq/test*_1.fastq.gz")[0],glob.glob("fastq/test*_2.fastq.gz")[0])
-    # return glob.glob("fastq/*_1.fastq.gz")
+    if OPTIONS.test:
+        return [(glob.glob("fastq/test*_1.fastq.gz")[0],glob.glob("fastq/test*_2.fastq.gz")[0])]
+
+    r1_files = glob.glob("fastq/*_1.fastq.gz")
+    # For each R1 file, identify the corresponding R2 file by replacing "_1.fastq.gz" with "_2.fastq.gz"
+    pairs = [(r1, r1.replace("_1.fastq.gz", "_2.fastq.gz")) for r1 in r1_files if os.path.exists(r1.replace("_1.fastq.gz", "_2.fastq.gz"))]
+    return pairs
+
 
 input_files = get_input_files()
 
@@ -60,7 +66,7 @@ input_files = get_input_files()
 #           [os.path.join(PARAMS['output_dir'], "trimmed/initial", "{SID[0]}_1_val_1.fq.gz"),
 #            os.path.join(PARAMS['output_dir'], "trimmed/initial", "{SID[0]}_2_val_2.fq.gz")],
 #            "{SID[0]}")
-@transform([input_files],# ["fastq/test*_1.fastq.gz", "fastq/test*_2.fastq.gz"],
+@transform(input_files,# ["fastq/test*_1.fastq.gz", "fastq/test*_2.fastq.gz"],
           ruffus_formatter("fastq/(?P<SID>[^/]+)_[12].fastq.gz"),
           [os.path.join(PARAMS['output_dir'], "trimmed/initial", "{SID[0]}_1_val_1.fq.gz"),
            os.path.join(PARAMS['output_dir'], "trimmed/initial", "{SID[0]}_2_val_2.fq.gz")],
@@ -215,8 +221,4 @@ def main():
         raise
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        logging.error(f"Pipeline execution failed: {str(e)}")
-        raise
+    main()
