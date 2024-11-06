@@ -7,6 +7,7 @@ methylation_analysis*/custom_methylation
 methylation_analysis_1.0
 methylation_analysis_2.0
 rrbs_embryos
+processed_data
 
 .ruffus_history.sqlite
 fastq
