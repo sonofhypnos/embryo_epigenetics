@@ -1,6 +1,9 @@
+# Info
+
+Scripts under src/wgbs were originally written to be run in the same directory as the input files. If they are rerun the paths need to be adjusted.
+
 # Next steps
 
-- [ ] I added ruffus for proper pipeline
 - [ ] added `bam_quality` script to check bam quality and find appropriate parameters for the scoring function for bowtie2 with bismark
 - [ ] add documentation on data and source files
 - [ ] At the end we probably want to export all of the data to an amazon bucket and then delete the SSD here. Unfortunately I did not document all of the steps of things to install (like all of the things I needed for bismark (I'll try to roughly list some of them here, so I can later do this in a script))
@@ -19,5 +22,7 @@ seqtk sample -s100 ../fastq/SRR5720828_1.fastq.gz 10000 > test.fastq
 (epi_env) ➜  methylation_analysis_1.0 git:(main) ✗ mv test.fastq ../fastq/test_1.fastq
 (epi_env) ➜  methylation_analysis_1.0 git:(main) ✗ seqtk sample -s100 ../fastq/SRR5720828_2.fastq.gz 10000 > ../fastq/test_2.fastq
 ```
+
+- [ ] wiggletools was added as another dependency. wiggletools is really annoying to install later, because it won't find the correct c-libraries, but symlinking the wrong libraries to wiggletools seems to just work
 
 
