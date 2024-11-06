@@ -1,15 +1,17 @@
 #!/bin/bash
 
-cd ../../
-conda activate epi_env
+cd /home/tassilo/repos/embryo_epigenetics
 
 # prefixes=$(cat data/prefixes.txt)
-gzip rrbs_data/*.gz
+gzip -d rrbs_data/*.gz
 
 
-parallel -j 8 'mv {} {.}' ::: rrbs_data/*.txt
-parallel -j 8 'awk '"'"'BEGIN { OFS="\t"; } {if($10=="CpG") print $1, $2, $2+1, $8;}'"'"' {} > {.}_CpG.bg' ::: rrbs_data/*.bed
-parallel -j 8 'bedGraphToBigWig {.}.bedgraph hg19_chrom.sizes {.}.bw' ::: rrbs_data/*_CpG.bg
+parallel -j 8 '[[ ! -f {.} ]] && mv {} {.}' ::: rrbs_data/*.txt
+# parallel -j 8 'awk '"'"'BEGIN { OFS="\t"; } {if($10=="CpG") print $1, $2, $2+1, $8;}'"'"' {} > {.}_CpG.bg' ::: rrbs_data/*.bed
+LC_COLLATE=C
+
+parallel -j 8 '[[ ! -f {.}_CpG.bg ]] && awk '"'"'BEGIN { OFS="\t"; } {if($10=="CpG") print $1, $2, $2+1, $8;}'"'"' {} | sort -k1,1 -k2,2n > {.}_CpG.bg' ::: rrbs_data/*.bed
+parallel -j 8 '[[ ! -f {.}.bw ]] && bedGraphToBigWig {.}.bg hg19_chrom.sizes {.}.bw' ::: rrbs_data/*_CpG.bg
 
 
 # for prefix in "${prefixes[@]}"; do
