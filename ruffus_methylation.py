@@ -39,7 +39,7 @@ OPTIONS = parse_arguments()
 PARAMS = {
     'reference_genome': '/home/ubuntu/sra_data/reference_genome/',
     'output_dir': 'methylation_analysis_2.0',
-    'max_parallel_jobs': 32
+    'max_parallel_jobs': 8
 }
 
 def setup_output_dirs():
@@ -63,103 +63,64 @@ def get_input_files():
 
 input_files = get_input_files()
 
-# NOTE: this part of the pipeline hasn't been run so far. I had problems with the regex for the files
-# @transform(glob.glob("fastq/*_1.fastq.gz") if not (OPTIONS and OPTIONS.test)
-#           else glob.glob("fastq/test*_1.fastq.gz"),
-#           ruffus_formatter("fastq/(?P<SID>[^/]+)_1.fastq.gz"),
-#           [os.path.join(PARAMS['output_dir'], "trimmed/initial", "{SID[0]}_1_val_1.fq.gz"),
-#            os.path.join(PARAMS['output_dir'], "trimmed/initial", "{SID[0]}_2_val_2.fq.gz")],
-#            "{SID[0]}")
-@transform(input_files,# ["fastq/test*_1.fastq.gz", "fastq/test*_2.fastq.gz"],
+@transform(input_files,
           ruffus_formatter("fastq/(?P<SID>[^/]+)_[12].fastq.gz"),
-          [os.path.join(PARAMS['output_dir'], "trimmed/initial", "{SID[0]}_1_val_1.fq.gz"),
-           os.path.join(PARAMS['output_dir'], "trimmed/initial", "{SID[0]}_2_val_2.fq.gz")],
+          [os.path.join(PARAMS['output_dir'], "trimmed/clean", "{SID[0]}_1.fq.gz"),
+           os.path.join(PARAMS['output_dir'], "trimmed/clean", "{SID[0]}_2.fq.gz")],
           "{SID[0]}")
 def initial_trim(input_files, output_files, sample_name):
-    """Initial trimming step"""
-    logger.info(f"Starting initial trimming for sample: {sample_name}")
+    """Combined trimming and cleanup step"""
+    logger.info(f"Starting trimming and cleanup for sample: {sample_name}")
 
-    # input_r2 = input_r1.replace("_1.fastq.gz", "_2.fastq.gz")
+    # Setup input files
     input_r1 = input_files[0]
     input_r2 = input_files[1]
     if not os.path.exists(input_r2):
         raise ValueError(f"Missing R2 file for {input_r1}")
 
-    output_dir = os.path.join(PARAMS['output_dir'], "trimmed/initial")
+    # Create temporary directory for intermediate files
+    temp_dir = os.path.join(PARAMS['output_dir'], "trimmed/initial")
+    final_dir = os.path.dirname(output_files[0])
+    os.makedirs(temp_dir, exist_ok=True)
+    os.makedirs(final_dir, exist_ok=True)
 
-    # NOTE: we clip the sequences since we saw bias in the sequences when using fastqc
-    # (and the original paper also made this decision)
+    # Calculate intermediate filenames (what trim_galore will create)
+    temp_output_r1 = os.path.join(temp_dir, f"{sample_name}_1_val_1.fq.gz")
+    temp_output_r2 = os.path.join(temp_dir, f"{sample_name}_2_val_2.fq.gz")
+
+    # Run trim_galore
     trim_cmd = (
         f"trim_galore --paired "
         f"--clip_R1 6 --clip_R2 6 "
         f"--three_prime_clip_R1 1 --three_prime_clip_R2 1 "
-        f"--output_dir {output_dir} "
+        f"--output_dir {temp_dir} "
         f"{input_r1} {input_r2}"
     )
 
     try:
+        # Run trimming
         subprocess.run(trim_cmd, shell=True, check=True)
-        logger.info(f"Completed initial trimming for sample: {sample_name}")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error in initial_trim for {sample_name}: {str(e)}")
-        raise
+        logger.info(f"Completed trimming for sample: {sample_name}")
 
-# @follows(initial_trim)
-# @transform(initial_trim,
-#           formatter(),
-#           [os.path.join(PARAMS['output_dir'], "trimmed/polyA", "{basename[0]}_1_val_1.fq.gz"),
-#            os.path.join(PARAMS['output_dir'], "trimmed/polyA", "{basename[0]}_2_val_2.fq.gz")])
-# def polyA_trim(input_files, output_files):
-#     """PolyA trimming step using cutadapt"""
-#     input_r1, input_r2 = input_files
-#     output_r1, output_r2 = output_files
-#     sample_name = os.path.basename(input_r1).split('_')[0]
-
-#     logger.info(f"Starting polyA trimming for sample: {sample_name}")
-
-#     # NOTE: we hope we can do the cutadapt in a single pass like this
-#     cmd = (
-#         f"cutadapt -a 'A{{10}}' -A 'A{{10}}' -g 'A{{10}}' -G 'A{{10}}' -m 20 "
-#         f"-a 'T{{10}}' -A 'T{{10}}' -g 'T{{10}}' -G 'T{{10}}' "
-#         f"-o {output_r1} -p {output_r2} {input_r1} {input_r2}"
-#     )
-
-#     try:
-#         subprocess.run(cmd, shell=True, check=True)
-#         logger.info(f"Completed polyA trimming for sample: {sample_name}")
-#     except subprocess.CalledProcessError as e:
-#         logger.error(f"Error in polyA_trim for {sample_name}: {str(e)}")
-#         raise
-
-@follows(initial_trim)
-@transform(initial_trim,
-          formatter(".+/([^/_]+)_.*\.fq\.gz"),  # Captures everything before first underscore
-          [os.path.join(PARAMS['output_dir'], "trimmed/clean", "{1[0]}_1.fq.gz"),
-           os.path.join(PARAMS['output_dir'], "trimmed/clean", "{1[0]}_2.fq.gz")])
-def cleanup_names(input_files, output_files):
-    """Clean up the file names after all trimming steps"""
-    input_r1, input_r2 = input_files
-    output_r1, output_r2 = output_files
-    sample_name = os.path.basename(input_r1).split('_')[0]
-
-    # Create clean directory if it doesn't exist
-    os.makedirs(os.path.dirname(output_r1), exist_ok=True)
-
-    logger.info(f"Cleaning up file names for sample: {sample_name}")
-
-    try:
-        # Simply copy files with clean names
-        shutil.move(input_r1, output_r1)
-        shutil.move(input_r2, output_r2)
+        # Move files to final location with clean names
+        shutil.move(temp_output_r1, output_files[0])
+        shutil.move(temp_output_r2, output_files[1])
         logger.info(f"Completed filename cleanup for sample: {sample_name}")
-    except Exception as e:
-        logger.error(f"Error in cleanup_names for {sample_name}: {str(e)}")
-        raise
 
+        # Clean up temporary directory if it's empty
+        if not os.listdir(temp_dir):
+            os.rmdir(temp_dir)
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error in trimming for {sample_name}: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Error in cleanup for {sample_name}: {str(e)}")
+        raise
 
 @jobs_limit(8)
-@follows(cleanup_names)
-@transform(cleanup_names,
+@follows(initial_trim)
+@transform(initial_trim,
           formatter(".+/([^/_]+)_.*\.fq\.gz"),  # Captures everything before first underscore
           [
            # os.path.join(PARAMS['output_dir'], "aligned", "{1[0]}_bismark_bt2_pe.bam"),
