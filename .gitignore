@@ -13,3 +13,5 @@ processed_data
 fastq
 # Emacs backup files
 *~
+data
+
