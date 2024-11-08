@@ -30,8 +30,10 @@ if [[ ! -f {.}_CpG.bedgraph ]]; then
     # First create the content without header
     awk '"'"'BEGIN { OFS="\t"; }
         {if($10=="CpG") print $1, $2, $2+1, $8;}'"'"' {} | \
-    sort -k1,1 -k2,2n | bedtools merge -i stdin -c 4 -d -1 -o max > {.}_CpG.bedgraph
+    sort -k1,1 -k2,2n | bedtools merge -i stdin -c 4 -d 1 -o max > {.}_CpG.bedgraph
 fi' :::    "${INPUT_DIR}"/GS*.bed # NOTE: we are adding GS in the beginning, so we don't match the files we are creating later
+
+
 
 command -v bedGraphToBigWig || echo  "run 'conda activate epi_env' before running this script."
 
