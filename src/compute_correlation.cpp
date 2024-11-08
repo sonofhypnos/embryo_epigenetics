@@ -141,7 +141,7 @@ int main(int argc, char *argv[]) {
   cerr << "File 2 entries: " << wig2.size() << endl;
 
   double correlation = computeCorrelation(wig1, wig2);
-  cout << fixed << setprecision(6) << correlation << endl;
+  cout << fixed << setprecision(3) << correlation << endl;
 
   return 0;
 }
