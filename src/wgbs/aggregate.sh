@@ -5,7 +5,7 @@ for cell_type in Sperm Oocyte Zygote "2cell" "4cell" "8cell" Morula ICM TE hESC 
     for meth_type in "ACG.TCG" "GCA.GCC.GCT"; do
         # Get all replicates for this condition
         files=($(ls *${cell_type}*${meth_type}*.bw))
-	echo $files
+        echo $files
         
         if [ ${#files[@]} -gt 0 ]; then
             echo "Processing ${cell_type} ${meth_type}"
