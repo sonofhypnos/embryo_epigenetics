@@ -65,8 +65,7 @@ vector<WigEntry> readWig(const string &filename) {
       // cout << "curr_chrom" << curr_chrom << endl;
     } catch (const std::exception &e) {
       cerr << "Error parsing value: " << line << endl;
-      // exit(1);
-      continue;
+      exit(1);
     }
   }
 
