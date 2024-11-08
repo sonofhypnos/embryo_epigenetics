@@ -1,5 +1,7 @@
 #!/bin/bash
+#
 
+# Configuration variables
 DATA_DIR="/home/tassilo/repos/embryo_epigenetics"
 INPUT_DIR="$DATA_DIR/rrbs_data"  # Default input directory
 
@@ -30,6 +32,7 @@ export LC_COLLATE=C
 gzip -d "${INPUT_DIR}"/*.gz
 parallel -j 8 '[[ ! -f {.} ]] && [[ -f {} ]] && mv {} {.}' ::: "${INPUT_DIR}"/GS*.txt
 parallel -j 8 '[[ ! -f {.} ]] && [[ -f {} ]] && mv {} {.}' ::: "${INPUT_DIR}"/GS*.txt
+
 
 # Process bed files to bedGraph
 # NOTE: in order to merge adjacent windows with bedtools merge, unexplicably the correct value is 1?
@@ -70,14 +73,12 @@ for cell_type in "${CELL_TYPES[@]}"; do
                 wig2bed < "${input_file}" > "${bed_file}"
 
                 # Convert to bed (we remove the index column that I don't know it's origin from )
-                sort "${bed_file}" -k1,1 -k2,2n | awk 'BEGIN { OFS="\t"} {print $1, $2, $3, $5}' >  "$bedgraph_file"
-
-                # Now convert to bigwig
+                sort "${bed_file}" -k1,1 -k2,2n | awk 'BEGIN { OFS="\t"} {print $1, $2, $3, $5}' | bedtools merge -i stdin -c 4 -d 1 -o max > "$bedgraph_file"
                 bedGraphToBigWig "${bedgraph_file}" hg19_chrom.sizes "${bw_file}"
 
-                # NOTE: this line is just here to check everything is working as expected
                 wiggletools "$bw_file" 1>/dev/null || echo "Big wig files are not correct!" >&2
             fi
         done
     done
 done
+
