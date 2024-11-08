@@ -7,6 +7,7 @@ methylation_analysis*/custom_methylation
 methylation_analysis_1.0
 methylation_analysis_2.0
 processed_data
+src/wig_correlation
 
 .ruffus_history.sqlite
 fastq
