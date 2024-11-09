@@ -19,7 +19,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 CELL_TYPES=("Sperm" "Zygote" "MII_Oocyte" "2-cell" "4-cell" "8-cell" "Morula" "ICM" "TE" "1st_PB" "2nd_PB" "Liver" "PN")
-METH_TYPES=("CpG")
+# METH_TYPES=("CpG" "CHH" "CHG")
+METH_TYPES=("CHH" "CHG")
 SEQ_TYPES=("_RRBS" "_scRRBS" "_WGBS")
 
 # Change to working directory
@@ -33,25 +34,28 @@ gzip -d "${INPUT_DIR}"/*.gz
 parallel -j 8 '[[ ! -f {.} ]] && [[ -f {} ]] && mv {} {.}' ::: "${INPUT_DIR}"/GS*.txt
 parallel -j 8 '[[ ! -f {.} ]] && [[ -f {} ]] && mv {} {.}' ::: "${INPUT_DIR}"/GS*.txt
 
+for meth_type in "${METH_TYPES[@]}"; do
+    # Process bed files to bedGraph
+    # NOTE: in order to merge adjacent windows with bedtools merge, unexplicably the correct value is 1?
+    parallel -j 8 '
+    if [[ ! -f {.}_CpG.bedgraph ]]; then
+        echo processing {} ...
+        HEADER="chromosome\tstart\tend\tmethylation"
+        # First create the content without header
+        awk '"'"'BEGIN { OFS="\t"; }
+            {if($10=="CpG") print $1, $2, $2+1, $8;}'"'"' {} | \
+        sort -k1,1 -k2,2n | bedtools merge -i stdin -c 4 -d 1 -o max > {.}_CpG.bedgraph
+    fi' :::    "${INPUT_DIR}"/GS*.bed # NOTE: we are adding GS in the beginning, so we don't match the files we are creating later
 
-# Process bed files to bedGraph
-# NOTE: in order to merge adjacent windows with bedtools merge, unexplicably the correct value is 1?
-parallel -j 8 '
-if [[ ! -f {.}_CpG.bedgraph ]]; then
-    echo processing {} ...
-    HEADER="chromosome\tstart\tend\tmethylation"
-    # First create the content without header
-    awk '"'"'BEGIN { OFS="\t"; }
-        {if($10=="CpG") print $1, $2, $2+1, $8;}'"'"' {} | \
-    sort -k1,1 -k2,2n | bedtools merge -i stdin -c 4 -d 1 -o max > {.}_CpG.bedgraph
-fi' :::    "${INPUT_DIR}"/GS*.bed # NOTE: we are adding GS in the beginning, so we don't match the files we are creating later
 
 
+    command -v bedGraphToBigWig || echo  "run 'conda activate epi_env' before running this script."
 
-command -v bedGraphToBigWig || echo  "run 'conda activate epi_env' before running this script."
+    # Convert bedGraph to bigWig
+    parallel -j 8 '[[ ! -f {.}.bw ]] && echo transforming {} to bigwig file && bedGraphToBigWig {.}.bedgraph hg19_chrom.sizes {.}.bw' ::: "${INPUT_DIR}"/GS*_CpG.bedgraph
+done
 
-# Convert bedGraph to bigWig
-parallel -j 8 '[[ ! -f {.}.bw ]] && echo transforming {} to bigwig file && bedGraphToBigWig {.}.bedgraph hg19_chrom.sizes {.}.bw' ::: "${INPUT_DIR}"/GS*_CpG.bedgraph
+
 
 # Process each cell type and methylation type combination
 for cell_type in "${CELL_TYPES[@]}"; do
