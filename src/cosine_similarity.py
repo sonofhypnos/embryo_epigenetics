@@ -19,6 +19,7 @@ RESULTS_DIR = f"{PROJECT_DIR}results/"
 cache = Cache(CACHE_DIR)
 
 # TODO: Add other methylation types from RRBS data
+# TODO: Modify the GC data by taking some running average and see at which point the correlations actually get to a higher point (although there will probably not be a clear transition)
 
 
 CELL_TYPES_RRBS = [
@@ -115,16 +116,16 @@ rrbs_sample_filenames = {
 
 # print(wgbs_filenames)
 # print(rrbs_filenames)
-# print(rrbs_sample_filenames)
+print(rrbs_sample_filenames)
 
 dataset_params = {
-    "rrbs": {
+    "RRBS": {
         "methylation_types": methylation_types_rrbs,
         "filenames": rrbs_filenames,
         "cell_types": CELL_TYPES_RRBS,
         "sample_filenames": rrbs_sample_filenames,
     },
-    "wgbs": {
+    "WGBS": {
         "methylation_types": methylation_types_wgbs,
         "filenames": wgbs_filenames,
         "cell_types": CELL_TYPES_WGBS,
@@ -242,16 +243,23 @@ def sample_correlations(dataset="RRBS"):
     params = dataset_params[dataset]
     methylation_type = "CpG"
     for cell_type in params["cell_types"]:
-        correlations = run_conda_command(
-            f"wigCorrelate {' '.join(params['sample_filenames'][methylation_type][cell_type])}"
-        )
+        sample_filenames = params["sample_filenames"][methylation_type][cell_type]
+
+        if len(sample_filenames) < 2:
+            continue
+
+        result = run_conda_command(f"wigCorrelate {' '.join(sample_filenames)}")
+        correlations = result.stdout
 
         samples = [sample.split("\t") for sample in correlations.split("\n")][
             :-1
         ]  # removing empty end
+        # print(f"cell_type:{cell_type}")
+        # print(f"samples:{samples}")
 
         files = list(set([file for sample in samples for file in sample[:2]]))
-        indexes = [name.split("_")[0] for name in files]
+        # print(f"files:{files}")
+        indexes = [name.split("/")[-1].split("_")[0] for name in files]
         length = len(files)
         corr = np.zeros((length, length))
         for sample in samples:
@@ -350,8 +358,8 @@ def get_display_name(cell_type, dataset):
     return f"{cell_type}_{dataset}"
 
 
-dataset_name_1 = "wgbs"
-dataset_name_2 = "rrbs"
+dataset_name_1 = "WGBS"
+dataset_name_2 = "RRBS"
 # Loop through methylation types that exist in both datasets
 # common_methylation_types = set(datasets[dataset_name_1]["methylation_types"]) & set(
 #     datasets[dataset_name_2]["methylation_types"]
