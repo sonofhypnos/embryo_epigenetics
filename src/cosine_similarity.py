@@ -8,6 +8,7 @@ import diskcache
 from diskcache import Cache
 from diskcache.core import ENOVAL
 from functools import partial
+import glob
 
 PROJECT_DIR = "/home/tassilo/repos/embryo_epigenetics/"
 WGBS_DATA_DIR = f"{PROJECT_DIR}data/"
@@ -93,8 +94,29 @@ rrbs_filenames = {
 }
 
 
+# NOTE: I don't have the storage for this one (nor the data bandwidth)! (50GB)
+# wgbs_sample_filenames = {
+#     methylation_type: {
+#         cell_type: f"{WGBS_DATA_DIR}{cell_type}_{methylation_type}.bw"
+#         for cell_type in CELL_TYPES_WGBS
+#     }
+#     for methylation_type in methylation_types_wgbs
+# }
+
+rrbs_sample_filenames = {
+    methylation_type: {
+        cell_type: glob.glob(
+            f"{RRBS_DATA_DIR}GS*{cell_type_to_seq_type[cell_type]}_{cell_type.split('+')[0]}*_methylation_calling_{methylation_type}.bw"
+        )
+        for cell_type in CELL_TYPES_RRBS
+    }
+    for methylation_type in methylation_types_rrbs
+}
+
 # print(wgbs_filenames)
 # print(rrbs_filenames)
+# print(rrbs_sample_filenames)
+
 datasets = {
     "rrbs": {
         "methylation_types": methylation_types_rrbs,
