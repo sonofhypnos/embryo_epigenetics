@@ -33,6 +33,38 @@ pair<string, int> parseHeader(const string &line) {
   return {chrom, start};
 }
 
+// Parse a bedGraph format line
+vector<WigEntry> parseBedGraphLine(const string &line) {
+  vector<WigEntry> entries;
+  stringstream ss(line);
+  string chrom;
+  int start, end;
+  double value;
+
+  if (ss >> chrom >> start >> end >> value) {
+    // For bedGraph format, create an entry for each position in the range
+    for (int pos = start; pos < end; pos++) {
+      entries.push_back({chrom, pos, value});
+    }
+  }
+
+  return entries;
+}
+
+// Check if a line is in bedGraph format
+bool isBedGraphLine(const string &line) {
+  if (line.empty() || line[0] == '#' || line.substr(0, 9) == "fixedStep") {
+    return false;
+  }
+
+  stringstream ss(line);
+  string chrom;
+  int start, end;
+  double value;
+
+  return (ss >> chrom >> start >> end >> value) ? true : false;
+}
+
 vector<WigEntry> readWig(const string &filename) {
   ifstream fin(filename);
   if (!fin.is_open()) {
@@ -43,9 +75,10 @@ vector<WigEntry> readWig(const string &filename) {
   vector<WigEntry> entries;
   string line, curr_chrom;
   int curr_pos = 0;
+  bool in_fixed_step = false;
 
   while (getline(fin, line)) {
-    if (line.empty())
+    if (line.empty() || line[0] == '#')
       continue;
 
     if (line.substr(0, 9) == "fixedStep") {
@@ -56,16 +89,27 @@ vector<WigEntry> readWig(const string &filename) {
       }
       curr_chrom = chrom;
       curr_pos = start;
+      in_fixed_step = true;
       continue;
     }
 
-    try {
-      double value = stod(line);
-      entries.push_back({curr_chrom, curr_pos++, value});
-      // cout << "curr_chrom" << curr_chrom << endl;
-    } catch (const std::exception &e) {
-      cerr << "Error parsing value: " << line << endl;
-      exit(1);
+    if (in_fixed_step) {
+      try {
+        double value = stod(line);
+        entries.push_back({curr_chrom, curr_pos++, value});
+      } catch (const std::exception &e) {
+        if (!isBedGraphLine(line)) {
+          cerr << "Error parsing value: " << line << endl;
+          exit(1);
+        }
+        in_fixed_step = false;
+      }
+    }
+
+    if (!in_fixed_step && isBedGraphLine(line)) {
+      auto bedGraphEntries = parseBedGraphLine(line);
+      entries.insert(entries.end(), bedGraphEntries.begin(),
+                     bedGraphEntries.end());
     }
   }
 
@@ -130,7 +174,6 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  // Add some basic logging
   cerr << "Reading file 1: " << argv[1] << endl;
   auto wig1 = readWig(argv[1]);
   cerr << "Reading file 2: " << argv[2] << endl;

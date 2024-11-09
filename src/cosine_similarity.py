@@ -19,7 +19,7 @@ cache = Cache(CACHE_DIR)
 
 
 CELL_TYPES_RRBS = [
-    "Oocyte",
+    "MII_Oocyte",
     "Sperm",
     "Zygote",
     "2-cell",
@@ -28,6 +28,10 @@ CELL_TYPES_RRBS = [
     "Morula",
     "ICM",
     "TE",
+    "Liver",
+    "2nd_PB",
+    "1st_PB",
+    "PN",
 ]
 
 CELL_TYPES_WGBS = [
@@ -47,15 +51,36 @@ methylation_types_rrbs = ["CpG"]
 
 wgbs_filenames = {
     methylation_type: {
-        cell_type: f"{WGBS_DATA_DIR}{cell_type}_{methylation_type}.bw"
+        cell_type: f"{WGBS_DATA_DIR}{cell_type}_{methylation_type}.wig"
         for cell_type in CELL_TYPES_WGBS
     }
     for methylation_type in methylation_types_wgbs
 }
 
+# TODO: handle scRRBS data once I know what that is
+# TODO: handle files where we have RRBS and WGBS like ICM?
+cell_type_to_seq_typ = {
+    "MII_Oocyte": "RRBS",
+    "Sperm+RRBS": "RRBS",
+    "Sperm+scRRBS": "scRRBS",
+    "Zygote": "RRBS",
+    "2-cell": "RRBS",
+    "4-cell": "RRBS",
+    "8-cell": "RRBS",
+    "Morula": "RRBS",
+    "ICM+RRBS": "RRBS",  # WGBS also possible
+    "ICM+WGBS": "WGBS",  # WGBS also possible
+    "TE": "RRBS",
+    "Liver": "WGBS",
+    "2nd_PB": "RRBS",
+    "1st_PB": "RRBS",
+    "PN": "scRRBS",
+}
+
+
 rrbs_filenames = {
     methylation_type: {
-        cell_type: f"{RRBS_DATA_DIR}{cell_type}_{methylation_type}_merged.bw"
+        cell_type: f"{RRBS_DATA_DIR}{cell_type.split('+')[0]}_{methylation_type}_{cell_type_to_seq_typ[cell_type]}.wig"
         for cell_type in CELL_TYPES_RRBS
     }
     for methylation_type in methylation_types_rrbs
@@ -165,22 +190,21 @@ def correlation_to_angular_distance(r):
     )  # multiply by 2 because vector elements always positive
 
 
-def cosine_similarity(f1, f2, capture_output=True):
-    result = subprocess.run(
-        ["zsh", "-c", f"{PROJECT_DIR}src/wig_correlation f1 f2"],
-        capture_output=capture_output,
-        text=True,
-        check=False,
-    )
-    # subprocess()
-    # sum_1_sqrt = float(run_conda_command(f"wiggletools meanI mult {f1} {f1}")[1]) ** 0.5
-    # sum_2_sqrt = float(run_conda_command(f"wiggletools meanI mult {f2} {f2}")[1]) ** 0.5
-    # sum_3 = float(run_conda_command(f"wiggletools meanI mult {f1} {f2}")[1])
-    # return sum_3 / (sum_1_sqrt * sum_2_sqrt)
-    print(result)
-    exit
+@cache.memoize()
+def correlation(f1, f2, capture_output=True):
+    try:
+        result = subprocess.run(
+            ["zsh", "-c", f"{PROJECT_DIR}src/wig_correlation {f1} {f2}"],
+            capture_output=capture_output,
+            text=True,
+            check=False,
+        )
+    except Exception as e:
+        print(e)
+        return 0
+    # print(result)
 
-    return result
+    return float(result.stdout)
 
 
 for dataset in datasets:
@@ -202,12 +226,15 @@ for dataset in datasets:
                     # FIXME: ICM file accidentally wasn't transferred to my pc (probably low disk space)!
                 cell_file_1 = file_names[methylation_type][cell1]
                 cell_file_2 = file_names[methylation_type][cell2]
+
+                print(cell_file_1)
+                print(cell_file_2)
                 # pearson = run_conda_command(
                 #     f"wiggletools pearson trim {cell_file_1} {cell_file_2}"
                 # )[1].split("\n")[0]
 
                 # corr[i, j] = pearson
-                corr[i, j] = cosine_similarity(cell_file_1, cell_file_2)
+                corr[i, j] = correlation(cell_file_1, cell_file_2)
                 print(cell1, cell2, corr[i, j])
 
                 ang[i, j] = correlation_to_angular_distance(corr[i, j])
@@ -277,8 +304,10 @@ for i, cell1 in enumerate(cell_types1):
             continue
         cell_file_1 = file_names1[methylation_type_1][cell1]
         cell_file_2 = file_names2[methylation_type_2][cell2]
+        print(cell_file_1)
+        print(cell_file_2)
 
-        corr[i, j] = cosine_similarity(cell_file_1, cell_file_2)
+        corr[i, j] = correlation(cell_file_1, cell_file_2)
         print(f"{cell1} ({dataset_name_1}) vs {cell2} ({dataset_name_2}): {corr[i, j]}")
         ang[i, j] = correlation_to_angular_distance(corr[i, j])
 
