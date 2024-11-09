@@ -17,21 +17,26 @@ RESULTS_DIR = f"{PROJECT_DIR}results/"
 
 cache = Cache(CACHE_DIR)
 
+# TODO: correlate samples within each type of cell
+
 
 CELL_TYPES_RRBS = [
     "MII_Oocyte",
+    "MII_Oocyte+scRRBS",
     "Sperm",
+    "Sperm+scRRBS",
     "Zygote",
     "2-cell",
     "4-cell",
     "8-cell",
     "Morula",
     "ICM",
+    "ICM+WGBS",
     "TE",
-    "Liver",
+    "Liver+WGBS",
     "2nd_PB",
     "1st_PB",
-    "PN",
+    "PN+scRRBS",
 ]
 
 CELL_TYPES_WGBS = [
@@ -49,6 +54,28 @@ CELL_TYPES_WGBS = [
 methylation_types_wgbs = ["ACG.TCG", "GCA.GCC.GCT"]
 methylation_types_rrbs = ["CpG"]
 
+# TODO: handle scRRBS data once I know what that is
+# TODO: handle files where we have RRBS and WGBS like ICM?
+cell_type_to_seq_type = {
+    "MII_Oocyte": "RRBS",
+    "MII_Oocyte+scRRBS": "scRRBS",
+    "Sperm": "RRBS",
+    "Sperm+scRRBS": "scRRBS",
+    "Zygote": "RRBS",
+    "2-cell": "RRBS",
+    "4-cell": "RRBS",
+    "8-cell": "RRBS",
+    "Morula": "RRBS",
+    "ICM": "RRBS",  # WGBS also possible
+    "ICM+WGBS": "WGBS",  # WGBS also possible
+    "TE": "RRBS",
+    "Liver+WGBS": "WGBS",
+    "2nd_PB": "RRBS",
+    "1st_PB": "RRBS",
+    "PN+scRRBS": "scRRBS",
+}
+
+
 wgbs_filenames = {
     methylation_type: {
         cell_type: f"{WGBS_DATA_DIR}{cell_type}_{methylation_type}.wig"
@@ -57,38 +84,17 @@ wgbs_filenames = {
     for methylation_type in methylation_types_wgbs
 }
 
-# TODO: handle scRRBS data once I know what that is
-# TODO: handle files where we have RRBS and WGBS like ICM?
-cell_type_to_seq_typ = {
-    "MII_Oocyte": "RRBS",
-    "Sperm+RRBS": "RRBS",
-    "Sperm+scRRBS": "scRRBS",
-    "Zygote": "RRBS",
-    "2-cell": "RRBS",
-    "4-cell": "RRBS",
-    "8-cell": "RRBS",
-    "Morula": "RRBS",
-    "ICM+RRBS": "RRBS",  # WGBS also possible
-    "ICM+WGBS": "WGBS",  # WGBS also possible
-    "TE": "RRBS",
-    "Liver": "WGBS",
-    "2nd_PB": "RRBS",
-    "1st_PB": "RRBS",
-    "PN": "scRRBS",
-}
-
-
 rrbs_filenames = {
     methylation_type: {
-        cell_type: f"{RRBS_DATA_DIR}{cell_type.split('+')[0]}_{methylation_type}_{cell_type_to_seq_typ[cell_type]}.wig"
+        cell_type: f"{RRBS_DATA_DIR}{cell_type.split('+')[0]}_{methylation_type}_{cell_type_to_seq_type[cell_type]}.wig"
         for cell_type in CELL_TYPES_RRBS
     }
     for methylation_type in methylation_types_rrbs
 }
 
-print(wgbs_filenames)
-print(rrbs_filenames)
 
+# print(wgbs_filenames)
+# print(rrbs_filenames)
 datasets = {
     "rrbs": {
         "methylation_types": methylation_types_rrbs,
@@ -148,9 +154,6 @@ def run_conda_command(
             text=True,
             check=False,
         )
-
-        if capture_output:
-            return result.returncode, result.stdout, result.stderr
         return result
 
     except subprocess.SubprocessError as e:
@@ -185,27 +188,37 @@ def correlation_to_angular_distance(r):
             f"Correlation coefficient must be between -1 and 1, value is {r}"
         )
 
-    return (
-        2 * np.arccos(r) / np.pi
-    )  # multiply by 2 because vector elements always positive
+    return np.arccos(r) / np.pi
 
 
 @cache.memoize()
 def correlation(f1, f2, capture_output=True):
     try:
-        result = subprocess.run(
-            ["zsh", "-c", f"{PROJECT_DIR}src/wig_correlation {f1} {f2}"],
-            capture_output=capture_output,
-            text=True,
-            check=False,
-        )
+        # results = subprocess.run(
+        #     ["zsh", "-c", f"{PROJECT_DIR}src/wig_correlation {f1} {f2}"],
+        #     capture_output=capture_output,
+        #     text=True,
+        #     check=False,
+        # )
+
+        results = run_conda_command(f"wigCorrelate {f1} {f2}")
+        corr = float(results.stdout.split()[-1])
+    except TypeError as e:
+        print(results)
+        print(e)
     except Exception as e:
         print(e)
         return 0
+
     # print(result)
 
-    return float(result.stdout)
+    return corr
 
+
+for cell_type in CELL_TYPES_RRBS:
+    print(
+        run_conda_command(f"wigCorrelate {' '.join(rrbs_sample_filenames[cell_type])}")
+    )
 
 for dataset in datasets:
     for methylation_type in datasets[dataset]["methylation_types"]:
@@ -348,6 +361,7 @@ plt.tight_layout()
 plt.savefig(
     f"{RESULTS_DIR}ang_matrix_{methylation_type_2}_{dataset_name_1}_{dataset_name_2}.png"
 )
+
 
 # def wiggle_product(v1, v2):
 #     run_conda_command("wiggletools product {v1} {v2}")
