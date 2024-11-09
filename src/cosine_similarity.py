@@ -20,24 +20,25 @@ cache = Cache(CACHE_DIR)
 
 # TODO: Add other methylation types from RRBS data
 # TODO: Modify the GC data by taking some running average and see at which point the correlations actually get to a higher point (although there will probably not be a clear transition)
+# TODO: Refactor plotting functions (add display names by default, add plt.close etc.)
 
 
 CELL_TYPES_RRBS = [
-    "MII_Oocyte",
+    "MII_Oocyte+RRBS",
     "MII_Oocyte+scRRBS",
-    "Sperm",
+    "Sperm+RRBS",
     "Sperm+scRRBS",
-    "Zygote",
-    "2-cell",
-    "4-cell",
-    "8-cell",
-    "Morula",
-    "ICM",
+    "Zygote+RRBS",
+    "2-cell+RRBS",
+    "4-cell+RRBS",
+    "8-cell+RRBS",
+    "Morula+RRBS",
+    "ICM+RRBS",
     "ICM+WGBS",
-    "TE",
+    "TE+RRBS",
     "Liver+WGBS",
-    "2nd_PB",
-    "1st_PB",
+    "2nd_PB+RRBS",
+    "1st_PB+RRBS",
     "PN+scRRBS",
 ]
 
@@ -58,24 +59,26 @@ methylation_types_rrbs = ["CpG"]
 
 # TODO: handle scRRBS data once I know what that is
 # TODO: handle files where we have RRBS and WGBS like ICM?
-cell_type_to_seq_type = {
-    "MII_Oocyte": "RRBS",
+cell_type_to_seq_type_rrbs = {
+    "MII_Oocyte+RRBS": "RRBS",
     "MII_Oocyte+scRRBS": "scRRBS",
-    "Sperm": "RRBS",
+    "Sperm+RRBS": "RRBS",
     "Sperm+scRRBS": "scRRBS",
-    "Zygote": "RRBS",
-    "2-cell": "RRBS",
-    "4-cell": "RRBS",
-    "8-cell": "RRBS",
-    "Morula": "RRBS",
-    "ICM": "RRBS",  # WGBS also possible
+    "Zygote+RRBS": "RRBS",
+    "2-cell+RRBS": "RRBS",
+    "4-cell+RRBS": "RRBS",
+    "8-cell+RRBS": "RRBS",
+    "Morula+RRBS": "RRBS",
+    "ICM+RRBS": "RRBS",  # WGBS also possible
     "ICM+WGBS": "WGBS",  # WGBS also possible
-    "TE": "RRBS",
+    "TE+RRBS": "RRBS",
     "Liver+WGBS": "WGBS",
-    "2nd_PB": "RRBS",
-    "1st_PB": "RRBS",
+    "2nd_PB+RRBS": "RRBS",
+    "1st_PB+RRBS": "RRBS",
     "PN+scRRBS": "scRRBS",
 }
+
+cell_type_to_seq_type_wgbs = {cell_type: "WGBS" for cell_type in CELL_TYPES_WGBS}
 
 
 wgbs_filenames = {
@@ -88,7 +91,7 @@ wgbs_filenames = {
 
 rrbs_filenames = {
     methylation_type: {
-        cell_type: f"{RRBS_DATA_DIR}{cell_type.split('+')[0]}_{methylation_type}_{cell_type_to_seq_type[cell_type]}.wig"
+        cell_type: f"{RRBS_DATA_DIR}{cell_type.split('+')[0]}_{methylation_type}_{cell_type_to_seq_type_rrbs[cell_type]}.wig"
         for cell_type in CELL_TYPES_RRBS
     }
     for methylation_type in methylation_types_rrbs
@@ -107,7 +110,7 @@ rrbs_filenames = {
 rrbs_sample_filenames = {
     methylation_type: {
         cell_type: glob.glob(
-            f"{RRBS_DATA_DIR}GS*{cell_type_to_seq_type[cell_type]}_{cell_type.split('+')[0]}*_methylation_calling_{methylation_type}.bw"
+            f"{RRBS_DATA_DIR}GS*{cell_type_to_seq_type_rrbs[cell_type]}_{cell_type.split('+')[0]}*_methylation_calling_{methylation_type}.bw"
         )
         for cell_type in CELL_TYPES_RRBS
     }
@@ -124,11 +127,13 @@ dataset_params = {
         "filenames": rrbs_filenames,
         "cell_types": CELL_TYPES_RRBS,
         "sample_filenames": rrbs_sample_filenames,
+        "cell_type_seq_type": cell_type_to_seq_type_rrbs,
     },
     "WGBS": {
         "methylation_types": methylation_types_wgbs,
         "filenames": wgbs_filenames,
         "cell_types": CELL_TYPES_WGBS,
+        "cell_type_seq_type": cell_type_to_seq_type_wgbs,
     },
 }
 
@@ -259,7 +264,7 @@ def sample_correlations(dataset="RRBS"):
 
         files = list(set([file for sample in samples for file in sample[:2]]))
         # print(f"files:{files}")
-        indexes = [name.split("/")[-1].split("_")[0] for name in files]
+        indexes = [name.split("/")[-1].split("_")[0] for name in sample_filenames]
         length = len(files)
         corr = np.zeros((length, length))
         for sample in samples:
@@ -355,7 +360,8 @@ for dataset in dataset_params:
 
 # For cell types that exist in both datasets, create display names
 def get_display_name(cell_type, dataset):
-    return f"{cell_type}_{dataset}"
+    seq_type = dataset_params[dataset]["cell_type_seq_type"][cell_type]
+    return f"{cell_type.split('+')[0]}_{seq_type}"
 
 
 dataset_name_1 = "WGBS"
