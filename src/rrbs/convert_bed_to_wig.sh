@@ -36,23 +36,20 @@ parallel -j 8 '[[ ! -f {.} ]] && [[ -f {} ]] && mv {} {.}' ::: "${INPUT_DIR}"/GS
 
 for meth_type in "${METH_TYPES[@]}"; do
     # Process bed files to bedGraph
-    # NOTE: in order to merge adjacent windows with bedtools merge, unexplicably the correct value is 1?
-    parallel -j 8 '
-    if [[ ! -f {.}_CpG.bedgraph ]]; then
+    parallel -j 8 "
+    if [[ ! -f {.}_${meth_type}.bedgraph ]]; then
         echo processing {} ...
-        HEADER="chromosome\tstart\tend\tmethylation"
+        HEADER=\"chromosome\tstart\tend\tmethylation\"
         # First create the content without header
-        awk '"'"'BEGIN { OFS="\t"; }
-            {if($10=="CpG") print $1, $2, $2+1, $8;}'"'"' {} | \
-        sort -k1,1 -k2,2n | bedtools merge -i stdin -c 4 -d 1 -o max > {.}_CpG.bedgraph
-    fi' :::    "${INPUT_DIR}"/GS*.bed # NOTE: we are adding GS in the beginning, so we don't match the files we are creating later
+        awk -v meth_type='${meth_type}' 'BEGIN { OFS=\"\t\"; }
+            {if(\$10==meth_type) print \$1, \$2, \$2+1, \$8;}' {} | \
+        sort -k1,1 -k2,2n | bedtools merge -i stdin -c 4 -d 1 -o max > {.}_${meth_type}.bedgraph
+    fi" ::: "${INPUT_DIR}"/GS*.bed
 
-
-
-    command -v bedGraphToBigWig || echo  "run 'conda activate epi_env' before running this script."
+    command -v bedGraphToBigWig || echo "run 'conda activate epi_env' before running this script."
 
     # Convert bedGraph to bigWig
-    parallel -j 8 '[[ ! -f {.}.bw ]] && echo transforming {} to bigwig file && bedGraphToBigWig {.}.bedgraph hg19_chrom.sizes {.}.bw' ::: "${INPUT_DIR}"/GS*_CpG.bedgraph
+    parallel -j 8 "[[ ! -f {.}.bw ]] && echo transforming {} to bigwig file && bedGraphToBigWig {.}.bedgraph hg19_chrom.sizes {.}.bw" ::: "${INPUT_DIR}"/GS*_${meth_type}.bedgraph
 done
 
 
