@@ -18,7 +18,7 @@ RESULTS_DIR = f"{PROJECT_DIR}results/"
 
 cache = Cache(CACHE_DIR)
 
-# TODO: correlate samples within each type of cell
+# TODO: Add other methylation types from RRBS data
 
 
 CELL_TYPES_RRBS = [
@@ -117,11 +117,12 @@ rrbs_sample_filenames = {
 # print(rrbs_filenames)
 # print(rrbs_sample_filenames)
 
-datasets = {
+dataset_params = {
     "rrbs": {
         "methylation_types": methylation_types_rrbs,
         "filenames": rrbs_filenames,
         "cell_types": CELL_TYPES_RRBS,
+        "sample_filenames": rrbs_sample_filenames,
     },
     "wgbs": {
         "methylation_types": methylation_types_wgbs,
@@ -237,15 +238,57 @@ def correlation(f1, f2, capture_output=True):
     return corr
 
 
-for cell_type in CELL_TYPES_RRBS:
-    print(
-        run_conda_command(f"wigCorrelate {' '.join(rrbs_sample_filenames[cell_type])}")
-    )
+def sample_correlations(dataset="RRBS"):
+    params = dataset_params[dataset]
+    methylation_type = "CpG"
+    for cell_type in params["cell_types"]:
+        correlations = run_conda_command(
+            f"wigCorrelate {' '.join(params['sample_filenames'][methylation_type][cell_type])}"
+        )
 
-for dataset in datasets:
-    for methylation_type in datasets[dataset]["methylation_types"]:
-        cell_types = datasets[dataset]["cell_types"]
-        file_names = datasets[dataset]["filenames"]
+        samples = [sample.split("\t") for sample in correlations.split("\n")][
+            :-1
+        ]  # removing empty end
+
+        files = list(set([file for sample in samples for file in sample[:2]]))
+        indexes = [name.split("_")[0] for name in files]
+        length = len(files)
+        corr = np.zeros((length, length))
+        for sample in samples:
+            i = files.index(sample[0])
+            j = files.index(sample[1])
+            val = float(sample[2])
+            corr[i, j] = val
+            corr[j, i] = val
+
+        figsize = get_figure_size(length, length)
+
+        plt.figure(figsize=figsize)  # Adjust size as needed
+        sns.heatmap(
+            corr,
+            annot=True,
+            fmt=".2f",
+            cmap="coolwarm",
+            xticklabels=indexes,
+            yticklabels=indexes,
+        )
+        plt.title(
+            f"Correlation between {cell_type} {methylation_type} samples in the {dataset} dataset"
+        )
+        plt.xticks(rotation=45, ha="right")
+        plt.yticks(rotation=0)
+        plt.tight_layout()
+        plt.savefig(
+            f"{RESULTS_DIR}corr_matrix_{methylation_type}_{dataset}_{cell_type}.png"
+        )
+
+
+sample_correlations()
+
+for dataset in dataset_params:
+    for methylation_type in dataset_params[dataset]["methylation_types"]:
+        cell_types = dataset_params[dataset]["cell_types"]
+        file_names = dataset_params[dataset]["filenames"]
 
         length = len(cell_types)
         corr = np.zeros((length, length))
@@ -314,10 +357,10 @@ dataset_name_2 = "rrbs"
 #     datasets[dataset_name_2]["methylation_types"]
 # )
 
-cell_types1 = datasets[dataset_name_1]["cell_types"]
-cell_types2 = datasets[dataset_name_2]["cell_types"]
-file_names1 = datasets[dataset_name_1]["filenames"]
-file_names2 = datasets[dataset_name_2]["filenames"]
+cell_types1 = dataset_params[dataset_name_1]["cell_types"]
+cell_types2 = dataset_params[dataset_name_2]["cell_types"]
+file_names1 = dataset_params[dataset_name_1]["filenames"]
+file_names2 = dataset_params[dataset_name_2]["filenames"]
 methylation_type_1 = "ACG.TCG"
 methylation_type_2 = "CpG"
 
