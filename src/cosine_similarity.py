@@ -132,7 +132,8 @@ class DatasetParams:
     sample_filenames: Dict[str, Dict[str, str]]
     cell_types: List[str]
     cell_type_seq_type: Dict[str, str]
-
+    data_path: str
+    results_path: str
     # Allow dictionary-style access as a fallback
     def __getitem__(self, item):
         return getattr(self, item)
@@ -155,6 +156,8 @@ dataset_params = AllDatasetParams(
         sample_filenames=rrbs_sample_filenames,
         cell_types=CELL_TYPES_RRBS,
         cell_type_seq_type=cell_type_to_seq_type_rrbs,
+        data_path=RRBS_DATA_DIR,
+        results_path=os.path.join(RESULTS_DIR, "rrbs/"),
     ),
     WGBS=DatasetParams(
         methylation_types=methylation_types_wgbs,
@@ -162,6 +165,8 @@ dataset_params = AllDatasetParams(
         sample_filenames=wgbs_sample_filenames,
         cell_types=CELL_TYPES_WGBS,
         cell_type_seq_type=cell_type_to_seq_type_wgbs,
+        data_path=WGBS_DATA_DIR,
+        results_path=os.path.join(RESULTS_DIR, "wgbs/"),
     ),
 )
 
@@ -272,6 +277,22 @@ def correlation(f1, f2, capture_output=True):
     return corr
 
 
+def filepath_to_index(filepath):
+    return os.path.basename(filepath).split("_")[0]
+
+
+def generate_sample_histograms(dataset="RGBS"):
+    params = dataset_params[dataset]
+    for methylation_type in params.methylation_types:
+        for cell_type in params.cell_types:
+            sample_filename = params.sample_filenames[methylation_type][cell_type]
+            hist_file = os.path.join(
+                params.results_path,
+                f"histogram_{filepath_to_index(sample_filename)}_{methylation_type}_{cell_type}_",
+            )
+            run_conda_command(f"wiggletools histogram {hist_file} {sample_filename}")
+
+
 def sample_correlations(dataset="RRBS", methylation_type="CpG"):
     params = dataset_params[dataset]
     for cell_type in params["cell_types"]:
@@ -296,7 +317,7 @@ def sample_correlations(dataset="RRBS", methylation_type="CpG"):
         files = list(set([file for sample in samples for file in sample[:2]]))
 
         # print(f"files:{files}")
-        indexes = [name.split("/")[-1].split("_")[0] for name in sample_filenames]
+        indexes = [filepath_to_index(name) for name in sample_filenames]
         length = len(files)
         corr = np.zeros((length, length))
         for sample in samples:
@@ -330,67 +351,50 @@ def sample_correlations(dataset="RRBS", methylation_type="CpG"):
         )
 
 
-sample_correlations()
-sample_correlations(dataset="WGBS", methylation_type="ACG.TCG")
+def dataset_correlations(dataset_params=dataset_params):
+    for dataset in dataset_params:
+        for methylation_type in dataset_params[dataset]["methylation_types"]:
+            cell_types = dataset_params[dataset]["cell_types"]
+            file_names = dataset_params[dataset]["filenames"]
 
-for dataset in dataset_params:
-    for methylation_type in dataset_params[dataset]["methylation_types"]:
-        cell_types = dataset_params[dataset]["cell_types"]
-        file_names = dataset_params[dataset]["filenames"]
+            length = len(cell_types)
+            corr = np.zeros((length, length))
+            ang = np.zeros((length, length))
+            figsize = get_figure_size(length, length)
 
-        length = len(cell_types)
-        corr = np.zeros((length, length))
-        ang = np.zeros((length, length))
-        figsize = get_figure_size(length, length)
+            for i, cell1 in enumerate(cell_types):
+                for j, cell2 in enumerate(cell_types):
+                    if methylation_type == "GCA.GCC.GCT" and (
+                        cell2 == "ICM" or cell1 == "ICM"
+                    ):
+                        continue
+                        # FIXME: ICM file accidentally wasn't transferred to my pc (probably low disk space)!
+                    cell_file_1 = file_names[methylation_type][cell1]
+                    cell_file_2 = file_names[methylation_type][cell2]
 
-        for i, cell1 in enumerate(cell_types):
-            for j, cell2 in enumerate(cell_types):
-                if methylation_type == "GCA.GCC.GCT" and (
-                    cell2 == "ICM" or cell1 == "ICM"
-                ):
-                    continue
-                    # FIXME: ICM file accidentally wasn't transferred to my pc (probably low disk space)!
-                cell_file_1 = file_names[methylation_type][cell1]
-                cell_file_2 = file_names[methylation_type][cell2]
+                    print(cell_file_1)
+                    print(cell_file_2)
+                    corr[i, j] = correlation(cell_file_1, cell_file_2)
+                    # print(cell1, cell2, corr[i, j])
 
-                print(cell_file_1)
-                print(cell_file_2)
-                # pearson = run_conda_command(
-                #     f"wiggletools pearson trim {cell_file_1} {cell_file_2}"
-                # )[1].split("\n")[0]
+                    ang[i, j] = correlation_to_angular_distance(corr[i, j])
+            # print(corr)
 
-                # corr[i, j] = pearson
-                corr[i, j] = correlation(cell_file_1, cell_file_2)
-                print(cell1, cell2, corr[i, j])
-
-                ang[i, j] = correlation_to_angular_distance(corr[i, j])
-        print(corr)
-
-        plt.figure(figsize=figsize)
-        sns.heatmap(
-            corr,
-            annot=True,
-            fmt=".2f",
-            cmap="coolwarm",
-            xticklabels=cell_types,
-            yticklabels=cell_types,
-        )
-        plt.title(f"Correlation Matrix for {methylation_type} for {dataset} dataset")
-        plt.savefig(f"{RESULTS_DIR}correlation_matrix_{methylation_type}_{dataset}.png")
-        # plt.show()
-
-        plt.figure(figsize=figsize)
-        sns.heatmap(
-            ang,
-            annot=True,
-            fmt=".2f",
-            cmap="coolwarm",
-            xticklabels=cell_types,
-            yticklabels=cell_types,
-        )
-        plt.title(f"Angle Matrix for {methylation_type} for {dataset} dataset")
-        plt.savefig(f"{RESULTS_DIR}angle_matrix_{methylation_type}_{dataset}.png")
-        # plt.show()
+            plt.figure(figsize=figsize)
+            sns.heatmap(
+                corr,
+                annot=True,
+                fmt=".2f",
+                cmap="coolwarm",
+                xticklabels=cell_types,
+                yticklabels=cell_types,
+            )
+            plt.title(
+                f"Correlation Matrix for {methylation_type} for {dataset} dataset"
+            )
+            plt.savefig(
+                f"{RESULTS_DIR}correlation_matrix_{methylation_type}_{dataset}.png"
+            )
 
 
 # For cell types that exist in both datasets, create display names
@@ -399,83 +403,70 @@ def get_display_name(cell_type, dataset):
     return f"{cell_type.split('+')[0]}_{seq_type}"
 
 
-dataset_name_1 = "WGBS"
-dataset_name_2 = "RRBS"
-# Loop through methylation types that exist in both datasets
-# common_methylation_types = set(datasets[dataset_name_1]["methylation_types"]) & set(
-#     datasets[dataset_name_2]["methylation_types"]
-# )
+def inter_dataset_correlations():
+    dataset_name_1 = "WGBS"
+    dataset_name_2 = "RRBS"
 
-cell_types1 = dataset_params[dataset_name_1]["cell_types"]
-cell_types2 = dataset_params[dataset_name_2]["cell_types"]
-file_names1 = dataset_params[dataset_name_1]["filenames"]
-file_names2 = dataset_params[dataset_name_2]["filenames"]
-methylation_type_1 = "ACG.TCG"
-methylation_type_2 = "CpG"
+    cell_types1 = dataset_params[dataset_name_1]["cell_types"]
+    cell_types2 = dataset_params[dataset_name_2]["cell_types"]
+    file_names1 = dataset_params[dataset_name_1]["filenames"]
+    file_names2 = dataset_params[dataset_name_2]["filenames"]
+    methylation_type_1 = "ACG.TCG"
+    methylation_type_2 = "CpG"
 
-# Create matrix of size (len(cell_types1) x len(cell_types2))
-length1 = len(cell_types1)
-length2 = len(cell_types2)
-corr = np.zeros((length1, length2))
-ang = np.zeros((length1, length2))
+    length1 = len(cell_types1)
+    length2 = len(cell_types2)
+    corr = np.zeros((length1, length2))
+    ang = np.zeros((length1, length2))
 
-figsize = get_figure_size(length1, length2)
+    figsize = get_figure_size(length1, length2)
 
-# Create display names for axis labels
-display_names1 = [get_display_name(ct, dataset_name_1) for ct in cell_types1]
-display_names2 = [get_display_name(ct, dataset_name_2) for ct in cell_types2]
+    # Create display names for axis labels
+    display_names1 = [get_display_name(ct, dataset_name_1) for ct in cell_types1]
+    display_names2 = [get_display_name(ct, dataset_name_2) for ct in cell_types2]
 
-for i, cell1 in enumerate(cell_types1):
-    for j, cell2 in enumerate(cell_types2):
-        if methylation_type_1 == "GCA.GCC.GCT" and (cell2 == "ICM" or cell1 == "ICM"):
-            continue
-        cell_file_1 = file_names1[methylation_type_1][cell1]
-        cell_file_2 = file_names2[methylation_type_2][cell2]
-        print(cell_file_1)
-        print(cell_file_2)
+    for i, cell1 in enumerate(cell_types1):
+        for j, cell2 in enumerate(cell_types2):
+            if methylation_type_1 == "GCA.GCC.GCT" and (
+                cell2 == "ICM" or cell1 == "ICM"
+            ):
+                continue
+            cell_file_1 = file_names1[methylation_type_1][cell1]
+            cell_file_2 = file_names2[methylation_type_2][cell2]
+            print(cell_file_1)
+            print(cell_file_2)
 
-        corr[i, j] = correlation(cell_file_1, cell_file_2)
-        print(f"{cell1} ({dataset_name_1}) vs {cell2} ({dataset_name_2}): {corr[i, j]}")
-        ang[i, j] = correlation_to_angular_distance(corr[i, j])
+            corr[i, j] = correlation(cell_file_1, cell_file_2)
+            print(
+                f"{cell1} ({dataset_name_1}) vs {cell2} ({dataset_name_2}): {corr[i, j]}"
+            )
+            ang[i, j] = correlation_to_angular_distance(corr[i, j])
 
-print(corr)
+    print(corr)
 
-# Plot correlation heatmap
-plt.figure(figsize=figsize)  # Adjust size as needed
-sns.heatmap(
-    corr,
-    annot=True,
-    fmt=".2f",
-    cmap="coolwarm",
-    xticklabels=display_names2,
-    yticklabels=display_names1,
-)
-plt.title(f"Cross-dataset Correlation Matrix for {methylation_type_2}")
-plt.xticks(rotation=45, ha="right")
-plt.yticks(rotation=0)
-plt.tight_layout()
-plt.savefig(
-    f"{RESULTS_DIR}corr_matrix_{methylation_type_2}_{dataset_name_1}_{dataset_name_2}.png"
-)
-
-# Plot angle heatmap
-plt.figure(figsize=figsize)
-sns.heatmap(
-    ang,
-    annot=True,
-    fmt=".2f",
-    cmap="coolwarm",
-    xticklabels=display_names2,
-    yticklabels=display_names1,
-)
-plt.title(f"Cross-dataset Angle Matrix for {methylation_type_2}")
-plt.xticks(rotation=45, ha="right")
-plt.yticks(rotation=0)
-plt.tight_layout()
-plt.savefig(
-    f"{RESULTS_DIR}ang_matrix_{methylation_type_2}_{dataset_name_1}_{dataset_name_2}.png"
-)
+    # Plot correlation heatmap
+    plt.figure(figsize=figsize)  # Adjust size as needed
+    sns.heatmap(
+        corr,
+        annot=True,
+        fmt=".2f",
+        cmap="coolwarm",
+        xticklabels=display_names2,
+        yticklabels=display_names1,
+    )
+    plt.title(f"Cross-dataset Correlation Matrix for {methylation_type_2}")
+    plt.xticks(rotation=45, ha="right")
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    plt.savefig(
+        f"{RESULTS_DIR}corr_matrix_{methylation_type_2}_{dataset_name_1}_{dataset_name_2}.png"
+    )
 
 
-# def wiggle_product(v1, v2):
-#     run_conda_command("wiggletools product {v1} {v2}")
+def main():
+    generate_sample_histograms()
+    sample_correlations()
+    sample_correlations(dataset="WGBS", methylation_type="ACG.TCG")
+
+
+main()
