@@ -171,6 +171,16 @@ dataset_params = AllDatasetParams(
 )
 
 
+def create_if_not_exists(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+
+for dataset in dataset_params:
+    create_if_not_exists(dataset.results_path)
+    create_if_not_exists(dataset.data_path)
+
+
 @cache.memoize()
 def run_conda_command(
     command,
@@ -353,15 +363,19 @@ def sample_correlations(dataset="RRBS", methylation_type="CpG"):
         plt.yticks(rotation=0)
         plt.tight_layout()
         plt.savefig(
-            f"{RESULTS_DIR}corr_matrix_{methylation_type}_{dataset}_{cell_type}.png"
+            os.path.join(
+                params.results_path,
+                f"corr_matrix_{methylation_type}_{dataset}_{cell_type}.png",
+            )
         )
 
 
 def dataset_correlations(dataset_params=dataset_params):
     for dataset in dataset_params:
-        for methylation_type in dataset_params[dataset]["methylation_types"]:
-            cell_types = dataset_params[dataset]["cell_types"]
-            file_names = dataset_params[dataset]["filenames"]
+        params = dataset_params[dataset]
+        for methylation_type in params["methylation_types"]:
+            cell_types = params["cell_types"]
+            file_names = params["filenames"]
 
             length = len(cell_types)
             corr = np.zeros((length, length))
@@ -399,7 +413,10 @@ def dataset_correlations(dataset_params=dataset_params):
                 f"Correlation Matrix for {methylation_type} for {dataset} dataset"
             )
             plt.savefig(
-                f"{RESULTS_DIR}correlation_matrix_{methylation_type}_{dataset}.png"
+                os.path.join(
+                    params.results_path,
+                    f"correlation_matrix_{methylation_type}_{dataset}.png",
+                )
             )
 
 
@@ -465,7 +482,10 @@ def inter_dataset_correlations():
     plt.yticks(rotation=0)
     plt.tight_layout()
     plt.savefig(
-        f"{RESULTS_DIR}corr_matrix_{methylation_type_2}_{dataset_name_1}_{dataset_name_2}.png"
+        os.path.join(
+            RESULTS_DIR,
+            f"corr_matrix_{methylation_type_2}_{dataset_name_1}_{dataset_name_2}.png",
+        )
     )
 
 
