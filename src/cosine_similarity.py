@@ -99,13 +99,13 @@ rrbs_filenames = {
 
 
 # NOTE: I don't have the storage for this one (nor the data bandwidth)! (50GB)
-# wgbs_sample_filenames = {
-#     methylation_type: {
-#         cell_type: f"{WGBS_DATA_DIR}{cell_type}_{methylation_type}.bw"
-#         for cell_type in CELL_TYPES_WGBS
-#     }
-#     for methylation_type in methylation_types_wgbs
-# }
+wgbs_sample_filenames = {
+    methylation_type: {
+        cell_type: glob.glob(f"{WGBS_DATA_DIR}GS*{cell_type}*{methylation_type}.wig")
+        for cell_type in CELL_TYPES_WGBS
+    }
+    for methylation_type in methylation_types_wgbs
+}
 
 rrbs_sample_filenames = {
     methylation_type: {
@@ -119,19 +119,21 @@ rrbs_sample_filenames = {
 
 # print(wgbs_filenames)
 # print(rrbs_filenames)
-print(rrbs_sample_filenames)
+# print(rrbs_sample_filenames)
+print(wgbs_sample_filenames)
 
 dataset_params = {
     "RRBS": {
         "methylation_types": methylation_types_rrbs,
         "filenames": rrbs_filenames,
-        "cell_types": CELL_TYPES_RRBS,
         "sample_filenames": rrbs_sample_filenames,
+        "cell_types": CELL_TYPES_RRBS,
         "cell_type_seq_type": cell_type_to_seq_type_rrbs,
     },
     "WGBS": {
         "methylation_types": methylation_types_wgbs,
         "filenames": wgbs_filenames,
+        "sample_filenames": wgbs_sample_filenames,
         "cell_types": CELL_TYPES_WGBS,
         "cell_type_seq_type": cell_type_to_seq_type_wgbs,
     },
@@ -244,18 +246,21 @@ def correlation(f1, f2, capture_output=True):
     return corr
 
 
-def sample_correlations(dataset="RRBS"):
+def sample_correlations(dataset="RRBS", methylation_type="CpG"):
     params = dataset_params[dataset]
-    methylation_type = "CpG"
     for cell_type in params["cell_types"]:
         sample_filenames = params["sample_filenames"][methylation_type][cell_type]
 
         if len(sample_filenames) < 2:
+            print(
+                f"Not enough sample filenames for {cell_type} {methylation_type} {dataset} ({len(sample_filenames)} files)"
+            )
             continue
 
         result = run_conda_command(f"wigCorrelate {' '.join(sample_filenames)}")
         correlations = result.stdout
 
+        print(result)
         samples = [sample.split("\t") for sample in correlations.split("\n")][
             :-1
         ]  # removing empty end
@@ -263,6 +268,7 @@ def sample_correlations(dataset="RRBS"):
         # print(f"samples:{samples}")
 
         files = list(set([file for sample in samples for file in sample[:2]]))
+
         # print(f"files:{files}")
         indexes = [name.split("/")[-1].split("_")[0] for name in sample_filenames]
         length = len(files)
@@ -275,6 +281,8 @@ def sample_correlations(dataset="RRBS"):
             corr[j, i] = val
 
         figsize = get_figure_size(length, length)
+        print(f"indexes: {indexes}")
+        print(corr)
 
         plt.figure(figsize=figsize)  # Adjust size as needed
         sns.heatmap(
@@ -297,6 +305,7 @@ def sample_correlations(dataset="RRBS"):
 
 
 sample_correlations()
+sample_correlations(dataset="WGBS", methylation_type="ACG.TCG")
 
 for dataset in dataset_params:
     for methylation_type in dataset_params[dataset]["methylation_types"]:
