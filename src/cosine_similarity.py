@@ -9,6 +9,8 @@ from diskcache import Cache
 from diskcache.core import ENOVAL
 from functools import partial
 import glob
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
 
 PROJECT_DIR = "/home/tassilo/repos/embryo_epigenetics/"
 WGBS_DATA_DIR = f"{PROJECT_DIR}data/"
@@ -81,7 +83,7 @@ cell_type_to_seq_type_rrbs = {
 cell_type_to_seq_type_wgbs = {cell_type: "WGBS" for cell_type in CELL_TYPES_WGBS}
 
 
-wgbs_filenames = {
+wgbs_filenames: Dict[str, Dict[str, str]] = {
     methylation_type: {
         cell_type: f"{WGBS_DATA_DIR}{cell_type}_{methylation_type}.wig"
         for cell_type in CELL_TYPES_WGBS
@@ -89,7 +91,7 @@ wgbs_filenames = {
     for methylation_type in methylation_types_wgbs
 }
 
-rrbs_filenames = {
+rrbs_filenames: Dict[str, Dict[str, str]] = {
     methylation_type: {
         cell_type: f"{RRBS_DATA_DIR}{cell_type.split('+')[0]}_{methylation_type}_{cell_type_to_seq_type_rrbs[cell_type]}.wig"
         for cell_type in CELL_TYPES_RRBS
@@ -99,7 +101,7 @@ rrbs_filenames = {
 
 
 # NOTE: I don't have the storage for this one (nor the data bandwidth)! (50GB)
-wgbs_sample_filenames = {
+wgbs_sample_filenames: Dict[str, Dict[str, str]] = {
     methylation_type: {
         cell_type: glob.glob(f"{WGBS_DATA_DIR}GS*{cell_type}*{methylation_type}.wig")
         for cell_type in CELL_TYPES_WGBS
@@ -107,7 +109,7 @@ wgbs_sample_filenames = {
     for methylation_type in methylation_types_wgbs
 }
 
-rrbs_sample_filenames = {
+rrbs_sample_filenames: Dict[str, Dict[str, str]] = {
     methylation_type: {
         cell_type: glob.glob(
             f"{RRBS_DATA_DIR}GS*{cell_type_to_seq_type_rrbs[cell_type]}_{cell_type.split('+')[0]}*_methylation_calling_{methylation_type}.bw"
@@ -122,22 +124,46 @@ rrbs_sample_filenames = {
 # print(rrbs_sample_filenames)
 print(wgbs_sample_filenames)
 
-dataset_params = {
-    "RRBS": {
-        "methylation_types": methylation_types_rrbs,
-        "filenames": rrbs_filenames,
-        "sample_filenames": rrbs_sample_filenames,
-        "cell_types": CELL_TYPES_RRBS,
-        "cell_type_seq_type": cell_type_to_seq_type_rrbs,
-    },
-    "WGBS": {
-        "methylation_types": methylation_types_wgbs,
-        "filenames": wgbs_filenames,
-        "sample_filenames": wgbs_sample_filenames,
-        "cell_types": CELL_TYPES_WGBS,
-        "cell_type_seq_type": cell_type_to_seq_type_wgbs,
-    },
-}
+
+@dataclass
+class DatasetParams:
+    methylation_types: List[str]
+    filenames: Dict[str, Dict[str, str]]
+    sample_filenames: Dict[str, Dict[str, str]]
+    cell_types: List[str]
+    cell_type_seq_type: Dict[str, str]
+
+    # Allow dictionary-style access as a fallback
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+
+@dataclass
+class AllDatasetParams:
+    RRBS: DatasetParams
+    WGBS: DatasetParams
+
+    # Allow dictionary-style access as a fallback
+    def __getitem__(self, item: str) -> DatasetParams:
+        return getattr(self, item)
+
+
+dataset_params = AllDatasetParams(
+    RRBS=DatasetParams(
+        methylation_types=methylation_types_rrbs,
+        filenames=rrbs_filenames,
+        sample_filenames=rrbs_sample_filenames,
+        cell_types=CELL_TYPES_RRBS,
+        cell_type_seq_type=cell_type_to_seq_type_rrbs,
+    ),
+    WGBS=DatasetParams(
+        methylation_types=methylation_types_wgbs,
+        filenames=wgbs_filenames,
+        sample_filenames=wgbs_sample_filenames,
+        cell_types=CELL_TYPES_WGBS,
+        cell_type_seq_type=cell_type_to_seq_type_wgbs,
+    ),
+)
 
 
 @cache.memoize()
