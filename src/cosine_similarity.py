@@ -305,6 +305,10 @@ def sample_correlations(dataset="RRBS", methylation_type="CpG"):
                 f"Not enough sample filenames for {cell_type} {methylation_type} {dataset} ({len(sample_filenames)} files)"
             )
             continue
+        if (
+            cell_type == "8cell"
+        ):  # NOTE: 8cell files have some problem with their encoding leading to some issue with wigCorrelate
+            continue
 
         result = run_conda_command(f"wigCorrelate {' '.join(sample_filenames)}")
         correlations = result.stdout
