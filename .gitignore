@@ -9,6 +9,7 @@ methylation_analysis_2.0
 processed_data
 src/wig_correlation
 results
+__pycache__/
 
 .ruffus_history.sqlite
 fastq
