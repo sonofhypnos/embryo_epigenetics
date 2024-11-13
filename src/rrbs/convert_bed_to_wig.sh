@@ -67,6 +67,7 @@ for cell_type in "${CELL_TYPES[@]}"; do
                 bed_file="${INPUT_DIR}/${cell_type}_${meth_type}${seq_type}.bed"
                 bedgraph_file="${INPUT_DIR}/${cell_type}_${meth_type}${seq_type}.bedgraph"
                 bw_file="${INPUT_DIR}/${cell_type}_${meth_type}${seq_type}_merged.bw"
+                # NOTE: It is possible that using unit here is the cause of our headaches, since unit unifies regions that are adjacent! This was not what we intended unit to do!
                 echo "run command: wiggletools ratio sum ${files[*]} : sum map unit map offset 1 map default -1 ${files[*]} > ${input_file}"
 
                 wiggletools ratio sum "${files[@]}" : sum map unit map offset 1 map default -1 "${files[@]}" > "${input_file}"
