@@ -10,7 +10,7 @@ from diskcache.core import ENOVAL
 from functools import partial
 import glob
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Iterator
 
 PROJECT_DIR = "/home/tassilo/repos/embryo_epigenetics/"
 WGBS_DATA_DIR = f"{PROJECT_DIR}data/"
@@ -147,6 +147,10 @@ class AllDatasetParams:
     # Allow dictionary-style access as a fallback
     def __getitem__(self, item: str) -> DatasetParams:
         return getattr(self, item)
+
+    def __iter__(self) -> Iterator[DatasetParams]:
+        for dataset in (self.RRBS, self.WGBS):
+            yield dataset
 
 
 dataset_params = AllDatasetParams(
