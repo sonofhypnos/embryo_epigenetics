@@ -281,16 +281,18 @@ def filepath_to_index(filepath):
     return os.path.basename(filepath).split("_")[0]
 
 
-def generate_sample_histograms(dataset="RGBS"):
+def generate_sample_histograms(dataset="RRBS"):
     params = dataset_params[dataset]
     for methylation_type in params.methylation_types:
         for cell_type in params.cell_types:
-            sample_filename = params.sample_filenames[methylation_type][cell_type]
-            hist_file = os.path.join(
-                params.results_path,
-                f"histogram_{filepath_to_index(sample_filename)}_{methylation_type}_{cell_type}_",
-            )
-            run_conda_command(f"wiggletools histogram {hist_file} {sample_filename}")
+            for sample_filename in params.sample_filenames[methylation_type][cell_type]:
+                hist_file = os.path.join(
+                    params.results_path,
+                    f"histogram_{filepath_to_index(sample_filename)}_{methylation_type}_{cell_type}_",
+                )
+                run_conda_command(
+                    f"wiggletools histogram {hist_file} {sample_filename}"
+                )
 
 
 def sample_correlations(dataset="RRBS", methylation_type="CpG"):
