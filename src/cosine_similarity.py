@@ -42,6 +42,7 @@ CELL_TYPES_RRBS = [
     "2nd_PB+RRBS",
     "1st_PB+RRBS",
     "PN+scRRBS",
+    "hESC",
 ]
 
 CELL_TYPES_WGBS = [
