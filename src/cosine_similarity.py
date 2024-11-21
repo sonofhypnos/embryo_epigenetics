@@ -54,6 +54,7 @@ CELL_TYPES_WGBS = [
     "Morula",
     "ICM",
     "TE",
+    "hESC",
 ]
 
 methylation_types_wgbs = ["ACG.TCG", "GCA.GCC.GCT"]
@@ -103,7 +104,7 @@ rrbs_filenames: Dict[str, Dict[str, str]] = {
 # NOTE: I don't have the storage for this one (nor the data bandwidth)! (50GB)
 wgbs_sample_filenames: Dict[str, Dict[str, str]] = {
     methylation_type: {
-        cell_type: glob.glob(f"{WGBS_DATA_DIR}GS*{cell_type}*{methylation_type}.wig")
+        cell_type: glob.glob(f"{WGBS_DATA_DIR}GS*{cell_type}*{methylation_type}*.bw")
         for cell_type in CELL_TYPES_WGBS
     }
     for methylation_type in methylation_types_wgbs
@@ -122,7 +123,7 @@ rrbs_sample_filenames: Dict[str, Dict[str, str]] = {
 # print(wgbs_filenames)
 # print(rrbs_filenames)
 # print(rrbs_sample_filenames)
-print(wgbs_sample_filenames)
+# print(wgbs_sample_filenames)
 
 
 @dataclass
@@ -134,6 +135,7 @@ class DatasetParams:
     cell_type_seq_type: Dict[str, str]
     data_path: str
     results_path: str
+    name: str
     # Allow dictionary-style access as a fallback
     def __getitem__(self, item):
         return getattr(self, item)
@@ -162,6 +164,7 @@ dataset_params = AllDatasetParams(
         cell_type_seq_type=cell_type_to_seq_type_rrbs,
         data_path=RRBS_DATA_DIR,
         results_path=os.path.join(RESULTS_DIR, "rrbs/"),
+        name="RRBS",
     ),
     WGBS=DatasetParams(
         methylation_types=methylation_types_wgbs,
@@ -171,6 +174,7 @@ dataset_params = AllDatasetParams(
         cell_type_seq_type=cell_type_to_seq_type_wgbs,
         data_path=WGBS_DATA_DIR,
         results_path=os.path.join(RESULTS_DIR, "wgbs/"),
+        name="WGBS",
     ),
 )
 
@@ -267,7 +271,7 @@ def correlation_to_angular_distance(r):
     return np.arccos(r) / np.pi
 
 
-@cache.memoize()
+# @cache.memoize()
 def correlation(f1, f2, capture_output=True):
     try:
         # results = subprocess.run(
@@ -278,13 +282,14 @@ def correlation(f1, f2, capture_output=True):
         # )
 
         results = run_conda_command(f"wigCorrelate {f1} {f2}")
+        print(results)
         corr = float(results.stdout.split()[-1])
     except TypeError as e:
         print(results)
         print(e)
     except Exception as e:
         print(e)
-        return 0
+        raise e
 
     # print(result)
 
@@ -295,17 +300,19 @@ def filepath_to_index(filepath):
     return os.path.basename(filepath).split("_")[0]
 
 
-def generate_sample_histograms(dataset="RRBS"):
-    params = dataset_params[dataset]
+def generate_sample_histograms(params):
     for methylation_type in params.methylation_types:
         for cell_type in params.cell_types:
             for sample_filename in params.sample_filenames[methylation_type][cell_type]:
                 hist_file = os.path.join(
                     params.results_path,
-                    f"histogram_{filepath_to_index(sample_filename)}_{methylation_type}_{cell_type}_",
+                    f"histogram_{filepath_to_index(sample_filename)}_{methylation_type}_{cell_type}.txt",
                 )
+                # print(hist_file)
+                # print("exiting..")
+                # exit()
                 run_conda_command(
-                    f"wiggletools histogram {hist_file} {sample_filename}"
+                    f"wiggletools histogram {hist_file} 100 {sample_filename}"
                 )
 
 
@@ -319,38 +326,69 @@ def sample_correlations(dataset="RRBS", methylation_type="CpG"):
                 f"Not enough sample filenames for {cell_type} {methylation_type} {dataset} ({len(sample_filenames)} files)"
             )
             continue
-        if (
-            cell_type == "8cell"
-        ):  # NOTE: 8cell files have some problem with their encoding leading to some issue with wigCorrelate
-            continue
+        # if (
+        #     cell_type == "8cell"
+        # ):  # NOTE: 8cell files have some problem with their encoding leading to some issue with wigCorrelate
+        #     continue
 
-        result = run_conda_command(f"wigCorrelate {' '.join(sample_filenames)}")
-        correlations = result.stdout
+        def get_sample_correlations(sample_filenames):
+            # if cell_type.split(" ")[0] in ["8cell", "4cell", "Morula"]:
+            #     key = run_conda_command.__cache_key__(
+            #         f"wigCorrelate {' '.join(sample_filenames)}"
+            #     )
 
-        print(result)
-        samples = [sample.split("\t") for sample in correlations.split("\n")][
-            :-1
-        ]  # removing empty end
-        # print(f"cell_type:{cell_type}")
-        # print(f"samples:{samples}")
+            #     print(f"Key: {key}")
+            #     popped = cache.pop(key)
+            #     print(f"Popped: ({popped})")
 
-        files = list(set([file for sample in samples for file in sample[:2]]))
+            result = run_conda_command(f"wigCorrelate {' '.join(sample_filenames)}")
+            correlations = result.stdout
 
-        # print(f"files:{files}")
+            samples = [sample.split("\t") for sample in correlations.split("\n")][
+                :-1
+            ]  # removing empty end
+            # print(f"cell_type:{cell_type}")
+            # print(f"samples:{samples}")
+
+            files = list(set([file for sample in samples for file in sample[:2]]))
+
+            # print(f"files:{files}")
+            length = len(files)
+            corr = np.zeros((length, length))
+            for sample in samples:
+                i = files.index(sample[0])
+                j = files.index(sample[1])
+                val = float(sample[2])
+                corr[i, j] = val
+                corr[j, i] = val
+
+            return corr
+
+        def get_sample_correlations_pair(sample_filenames):
+            length = len(sample_filenames)
+            corr = np.zeros((length, length))
+            for i, filename1 in enumerate(sample_filenames):
+                for j, filename2 in enumerate(sample_filenames):
+                    pearson = correlation(filename1, filename2)
+                    print(pearson)
+                    corr[i, j] = pearson
+            return corr
+
         indexes = [filepath_to_index(name) for name in sample_filenames]
-        length = len(files)
-        corr = np.zeros((length, length))
-        for sample in samples:
-            i = files.index(sample[0])
-            j = files.index(sample[1])
-            val = float(sample[2])
-            corr[i, j] = val
-            corr[j, i] = val
+        # if cell_type.split(" ")[0] in ["8cell", "4cell", "Morula"]:
+
+        #     corr = get_sample_correlations_pair(sample_filenames)
+        #     print(f"Cell-type: {cell_type}")
+        #     print(corr)
+        #     pause = input("Continue?")
+        # else:
+        corr = get_sample_correlations(sample_filenames)
+        length = corr.shape[0]
 
         figsize = get_figure_size(length, length)
-        print(f"indexes: {indexes}")
-        print(corr)
 
+        filename = f"corr_matrix_{methylation_type}_{dataset}_{cell_type}.png"
+        print(f"filename: {filename}")
         plt.figure(figsize=figsize)  # Adjust size as needed
         sns.heatmap(
             corr,
@@ -369,9 +407,10 @@ def sample_correlations(dataset="RRBS", methylation_type="CpG"):
         plt.savefig(
             os.path.join(
                 params.results_path,
-                f"corr_matrix_{methylation_type}_{dataset}_{cell_type}.png",
+                filename,
             )
         )
+        plt.close()
 
 
 def dataset_correlations(dataset_params=dataset_params):
@@ -422,6 +461,7 @@ def dataset_correlations(dataset_params=dataset_params):
                     f"correlation_matrix_{methylation_type}_{dataset}.png",
                 )
             )
+            plt.close()
 
 
 # For cell types that exist in both datasets, create display names
@@ -491,10 +531,12 @@ def inter_dataset_correlations():
             f"corr_matrix_{methylation_type_2}_{dataset_name_1}_{dataset_name_2}.png",
         )
     )
+    plt.close()
 
 
 def main():
-    generate_sample_histograms()
+    for params in dataset_params:
+        generate_sample_histograms(params)
     sample_correlations()
     sample_correlations(dataset="WGBS", methylation_type="ACG.TCG")
 
