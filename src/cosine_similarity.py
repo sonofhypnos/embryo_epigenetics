@@ -273,6 +273,8 @@ def correlation_to_angular_distance(r):
 
 # @cache.memoize()
 def correlation(f1, f2, capture_output=True):
+    if f1 == f2:
+        return 1
     try:
         # results = subprocess.run(
         #     ["zsh", "-c", f"{PROJECT_DIR}src/wig_correlation {f1} {f2}"],
@@ -411,6 +413,37 @@ def sample_correlations(dataset="RRBS", methylation_type="CpG"):
             )
         )
         plt.close()
+
+
+def correlate_everything(dataset_params=dataset_params):
+    for d1 in dataset_params:
+        for d2 in dataset_params:
+            p1 = dataset_params[d1]
+            p2 = dataset_params[d2]
+            methylation_types1 = p1["methylation_types"]
+            methylation_types2 = p2["methylation_types"]
+            for m1 in methylation_types1:
+                for m2 in methylation_types2:
+                    cell_types1 = p1["cell_types"]
+                    file_names1 = p1["filenames"]
+                    cell_types2 = p2["cell_types"]
+                    file_names2 = p2["filenames"]
+
+                    l1 = len(cell_types1)
+                    l2 = len(cell_types2)
+                    corr = np.zeros((l1, l2))
+                    for i, cell1 in enumerate(cell_types1):
+                        for j, cell2 in enumerate(cell_types2):
+                            if (m1 == "GCA.GCC.GCT" or m2 == "GCA.GCC.GCT") and (
+                                cell2 == "ICM" or cell1 == "ICM"
+                            ):
+                                continue
+                            cell_file_1 = file_names1[m1][cell1]
+                            cell_file_2 = file_names2[m2][cell2]
+
+                            print(cell_file_1)
+                            print(cell_file_2)
+                            corr[i, j] = correlation(cell_file_1, cell_file_2)
 
 
 def dataset_correlations(dataset_params=dataset_params):
