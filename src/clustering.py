@@ -1,13 +1,12 @@
 import numpy as np
 import pandas as pd
-from scipy.cluster.hierarchy import linkage, dendrogram
-from scipy.spatial.distance import pdist, squareform
 import seaborn as sns
 import matplotlib.pyplot as plt
 import glob
 import os
 from sklearn.metrics import silhouette_score, pairwise
-from scipy.cluster.hierarchy import fcluster
+from scipy.cluster.hierarchy import linkage, dendrogram
+from scipy.spatial.distance import pdist, squareform
 
 PROJECT_DIR = "/home/tassilo/repos/embryo_epigenetics/"
 WGBS_DATA_DIR = f"{PROJECT_DIR}data/"
@@ -151,7 +150,7 @@ def cluster_data_weighted(
         dist_matrix = pdist(methylation_data.T, metric=metric)
     # print(dist_matrix)
     # 3. Perform hierarchical clustering
-    linkage_matrix = linkage(dist_matrix, method="ward")
+    linkage_matrix = linkage(dist_matrix, method="euclidean")
 
     create_if_not_exists(figure_filename)
     # 4. Create visualization
@@ -227,7 +226,10 @@ def cluster_data(
 
     # print(dist_matrix)
     # 3. Perform hierarchical clustering
-    linkage_matrix = linkage(dist_matrix, method="ward")
+    if metric == "euclidean":
+        linkage_matrix = linkage(dist_matrix, method="single", metric="euclidean")
+    else:
+        linkage_matrix = linkage(dist_matrix, method="ward")
 
     create_if_not_exists(figure_filename)
     # 4. Create visualization
@@ -248,27 +250,6 @@ def cluster_data(
     plt.close()
 
     return linkage_matrix
-
-
-def analyze_cluster_separation(linkage_matrix, sample_groups):
-    """
-    Analyze the separation of sample groups in the clustering.
-
-    Parameters:
-    linkage_matrix: scipy linkage matrix from hierarchical clustering
-    sample_groups: dictionary mapping sample names to their groups
-
-    Returns:
-    float: silhouette score measuring cluster quality
-    """
-
-    cluster_labels = fcluster(linkage_matrix, t=2, criterion="maxclust")
-
-    # Calculate silhouette score
-    group_labels = [sample_groups[sample] for sample in sample_names]
-    score = silhouette_score(dist_matrix, group_labels)
-
-    return score
 
 
 def parse_data(filename):
