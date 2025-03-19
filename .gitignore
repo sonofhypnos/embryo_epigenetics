@@ -6,8 +6,11 @@ methylation_analysis*/custom_aligned
 methylation_analysis*/custom_methylation
 methylation_analysis_1.0
 methylation_analysis_2.0
+hg38.fa.gz
 processed_data
 src/wig_correlation
+src/super-SOX
+src/super-SOX\ 2/
 results
 __pycache__/
 
