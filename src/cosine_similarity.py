@@ -11,10 +11,13 @@ from functools import partial
 import glob
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Iterator
+from scipy.cluster import hierarchy
+from scipy.spatial.distance import squareform
 
 PROJECT_DIR = "/home/tassilo/repos/embryo_epigenetics/"
 WGBS_DATA_DIR = f"{PROJECT_DIR}data/"
 RRBS_DATA_DIR = f"{PROJECT_DIR}rrbs_data/"
+SUPERSOX_DATA_DIR = f"{PROJECT_DIR}data/supersox/rrbs/"
 CACHE_DIR = f"{PROJECT_DIR}tmp/"
 RESULTS_DIR = f"{PROJECT_DIR}results/"
 
@@ -56,6 +59,17 @@ CELL_TYPES_WGBS = [
     "TE",
     "hESC",
 ]
+CELL_TYPES_SUPERSOX = [
+    "O_Fibs_L2",
+    "Y_Fibs_L2",
+    "Y_iPSC_SS",
+    "Y_iPSC_WT",
+    "Y_iPSC_AV",
+    "O_iPSC_SS",
+    "O_iPSC_WT",
+    "O_iPSC_AV",
+    # NOTE: ignoring L2 for now
+]
 
 methylation_types_wgbs = ["ACG.TCG", "GCA.GCC.GCT"]
 methylation_types_rrbs = ["CpG"]
@@ -82,6 +96,9 @@ cell_type_to_seq_type_rrbs = {
 }
 
 cell_type_to_seq_type_wgbs = {cell_type: "WGBS" for cell_type in CELL_TYPES_WGBS}
+cell_type_to_seq_type_supersox = {
+    cell_type: "RRBS" for cell_type in CELL_TYPES_SUPERSOX
+}
 
 
 wgbs_filenames: Dict[str, Dict[str, str]] = {
@@ -100,6 +117,21 @@ rrbs_filenames: Dict[str, Dict[str, str]] = {
     for methylation_type in methylation_types_rrbs
 }
 
+supersox_filenames: Dict[
+    str, Dict[str, str]
+] = {  # FIXME: actually merge supersox files
+    "RRBS": {
+        cell_type: glob.glob(f"{SUPERSOX_DATA_DIR}GS*{cell_type}*.wig")[0]
+        for cell_type in CELL_TYPES_SUPERSOX
+    }
+}
+
+supersox_sample_filenames: Dict[str, Dict[str, str]] = {
+    "RRBS": {
+        cell_type: glob.glob(f"{SUPERSOX_DATA_DIR}GS*{cell_type}*.wig")
+        for cell_type in CELL_TYPES_SUPERSOX
+    }
+}
 
 # NOTE: I don't have the storage for this one (nor the data bandwidth)! (50GB)
 wgbs_sample_filenames: Dict[str, Dict[str, str]] = {
@@ -119,6 +151,7 @@ rrbs_sample_filenames: Dict[str, Dict[str, str]] = {
     }
     for methylation_type in methylation_types_rrbs
 }
+
 
 # print(wgbs_filenames)
 # print(rrbs_filenames)
@@ -145,13 +178,14 @@ class DatasetParams:
 class AllDatasetParams:
     RRBS: DatasetParams
     WGBS: DatasetParams
+    supersox: DatasetParams
 
     # Allow dictionary-style access as a fallback
     def __getitem__(self, item: str) -> DatasetParams:
         return getattr(self, item)
 
     def __iter__(self) -> Iterator[DatasetParams]:
-        for dataset in (self.RRBS, self.WGBS):
+        for dataset in (self.RRBS, self.WGBS, self.supersox):
             yield dataset
 
 
@@ -175,6 +209,16 @@ dataset_params = AllDatasetParams(
         data_path=WGBS_DATA_DIR,
         results_path=os.path.join(RESULTS_DIR, "wgbs/"),
         name="WGBS",
+    ),
+    supersox=DatasetParams(
+        methylation_types=["RRBS"],
+        filenames=supersox_filenames,
+        sample_filenames=supersox_sample_filenames,
+        cell_types=CELL_TYPES_SUPERSOX,
+        cell_type_seq_type=cell_type_to_seq_type_supersox,
+        data_path=SUPERSOX_DATA_DIR,
+        results_path=os.path.join(RESULTS_DIR, "supersox/"),
+        name="supersox",
     ),
 )
 
@@ -284,7 +328,7 @@ def correlation(f1, f2, capture_output=True):
         # )
 
         results = run_conda_command(f"wigCorrelate {f1} {f2}")
-        print(results)
+        # print(results)
         corr = float(results.stdout.split()[-1])
     except TypeError as e:
         print(results)
@@ -415,37 +459,6 @@ def sample_correlations(dataset="RRBS", methylation_type="CpG"):
         plt.close()
 
 
-def correlate_everything(dataset_params=dataset_params):
-    for d1 in dataset_params:
-        for d2 in dataset_params:
-            p1 = dataset_params[d1]
-            p2 = dataset_params[d2]
-            methylation_types1 = p1["methylation_types"]
-            methylation_types2 = p2["methylation_types"]
-            for m1 in methylation_types1:
-                for m2 in methylation_types2:
-                    cell_types1 = p1["cell_types"]
-                    file_names1 = p1["filenames"]
-                    cell_types2 = p2["cell_types"]
-                    file_names2 = p2["filenames"]
-
-                    l1 = len(cell_types1)
-                    l2 = len(cell_types2)
-                    corr = np.zeros((l1, l2))
-                    for i, cell1 in enumerate(cell_types1):
-                        for j, cell2 in enumerate(cell_types2):
-                            if (m1 == "GCA.GCC.GCT" or m2 == "GCA.GCC.GCT") and (
-                                cell2 == "ICM" or cell1 == "ICM"
-                            ):
-                                continue
-                            cell_file_1 = file_names1[m1][cell1]
-                            cell_file_2 = file_names2[m2][cell2]
-
-                            print(cell_file_1)
-                            print(cell_file_2)
-                            corr[i, j] = correlation(cell_file_1, cell_file_2)
-
-
 def dataset_correlations(dataset_params=dataset_params):
     for dataset in dataset_params:
         params = dataset_params[dataset]
@@ -468,8 +481,6 @@ def dataset_correlations(dataset_params=dataset_params):
                     cell_file_1 = file_names[methylation_type][cell1]
                     cell_file_2 = file_names[methylation_type][cell2]
 
-                    print(cell_file_1)
-                    print(cell_file_2)
                     corr[i, j] = correlation(cell_file_1, cell_file_2)
                     # print(cell1, cell2, corr[i, j])
 
@@ -533,8 +544,6 @@ def inter_dataset_correlations():
                 continue
             cell_file_1 = file_names1[methylation_type_1][cell1]
             cell_file_2 = file_names2[methylation_type_2][cell2]
-            print(cell_file_1)
-            print(cell_file_2)
 
             corr[i, j] = correlation(cell_file_1, cell_file_2)
             print(
@@ -567,7 +576,159 @@ def inter_dataset_correlations():
     plt.close()
 
 
+def correlate_everything(dataset_params=dataset_params):
+    # First, create a list of all unique combinations
+    combinations = []
+    labels = []
+    for dataset in dataset_params:
+        for mtype in dataset["methylation_types"]:
+            for cell_type in dataset["cell_types"]:
+                if mtype == "GCA.GCC.GCT":
+                    continue  # FIXME: as a hack to compute quicker
+                combinations.append((dataset, mtype, cell_type))
+                label = f"{dataset.name}_{mtype}_{cell_type}"
+                # print(label)
+                labels.append(label)
+
+    n = len(combinations)
+    # Create the full correlation matrix
+    corr_matrix = np.zeros((n, n))
+
+    # print(f"{combinations}\ncombinations above")
+
+    # Fill the correlation matrix
+    for i, (d1, m1, c1) in enumerate(combinations):
+        for j, (d2, m2, c2) in enumerate(combinations):
+            # Skip if ICM condition is met
+            if (m1 == "GCA.GCC.GCT" or m2 == "GCA.GCC.GCT") and (
+                c1 == "ICM" or c2 == "ICM"
+            ):
+                corr_matrix[i, j] = np.nan
+                continue
+
+            # Get the file names
+            cell_file_1 = d1["filenames"][m1][c1]
+            cell_file_2 = d2["filenames"][m2][c2]
+
+            corr = correlation(cell_file_1, cell_file_2)
+            corr_matrix[i, j] = corr
+            print(f"Correlation = {corr}")
+
+    return corr_matrix, labels
+
+
+def calculate_angular_distance(correlation_matrix):
+    """
+    Calculate angular distance from correlation matrix.
+    Angular distance = arccos(correlation) / π
+    This scales the distance to [0,1] where:
+    - 0 means perfectly correlated
+    - 0.5 means uncorrelated
+    - 1 means perfectly anti-correlated
+    """
+    # Handle any numerical instabilities in correlation values
+    correlation_matrix = np.clip(correlation_matrix, -1.0, 1.0)
+
+    # Calculate angular distance
+    angular_dist = np.arccos(correlation_matrix) / np.pi
+
+    # Handle any NaN values if present
+    if np.any(np.isnan(angular_dist)):
+        # Replace NaN with maximum distance (1.0)
+        angular_dist = np.nan_to_num(angular_dist, nan=1.0)
+
+    return angular_dist
+
+
+def cluster_data(correlation_matrix, labels, method="average", metric="angular"):
+    """
+    Perform hierarchical clustering using angular distance.
+
+    Parameters:
+    - correlation_matrix: The correlation matrix
+    - labels: List of labels for each row/column
+    - method: Linkage method ('single', 'complete', 'average', 'weighted', 'ward')
+    - metric: Distance metric ('angular' or 'correlation')
+
+    Returns:
+    - linkage_matrix: The hierarchical clustering linkage matrix
+    - distance_matrix: The distance matrix used for clustering
+    """
+
+    if metric == "angular":
+        distance_matrix = calculate_angular_distance(correlation_matrix)
+    else:  # 'correlation'
+        distance_matrix = 1 - correlation_matrix
+
+    # Convert to condensed form (required by scipy)
+    condensed_dist = squareform(distance_matrix)
+
+    # Perform hierarchical clustering
+    linkage_matrix = hierarchy.linkage(condensed_dist, method="single")
+
+    return linkage_matrix, distance_matrix
+
+
+# Example usage:
+def plot_clustering(correlation_matrix, labels, method="average", metric="angular"):
+    """
+    Plot the hierarchical clustering dendrogram.
+    """
+
+    # Perform clustering
+    linkage_matrix, distance_matrix = cluster_data(
+        correlation_matrix, labels, method, metric
+    )
+
+    # Create dendrogram
+    plt.figure(figsize=(15, 10))
+    hierarchy.dendrogram(
+        linkage_matrix,
+        labels=labels,
+        leaf_rotation=90,  # rotates the x axis labels
+        leaf_font_size=8,  # font size for the x axis labels
+    )
+    plt.title(
+        f"Hierarchical Clustering Dendrogram ({method} linkage, {metric} distance)"
+    )
+    plt.xlabel("Sample")
+    plt.ylabel("Distance")
+    plt.tight_layout()
+
+    return linkage_matrix, distance_matrix
+
+
+# Optional: Get cluster assignments for a specific number of clusters
+def get_clusters(linkage_matrix, n_clusters, labels):
+    """
+    Get cluster assignments for each sample.
+    """
+    from scipy.cluster import hierarchy
+
+    clusters = hierarchy.fcluster(linkage_matrix, n_clusters, criterion="maxclust")
+    cluster_assignments = dict(zip(labels, clusters))
+    return cluster_assignments
+
+
 def main():
+    # Run the full analysis
+    correlation_matrix, matrix_labels = correlate_everything(dataset_params)
+    linkage_matrix, distance_matrix = plot_clustering(
+        correlation_matrix, matrix_labels, method="average", metric="angular"
+    )
+
+    plt.figure(figsize=(15, 10))
+    hierarchy.dendrogram(
+        linkage_matrix,
+        labels=matrix_labels,
+        leaf_rotation=90,  # rotates the x axis labels
+        leaf_font_size=8,  # font size for the x axis labels
+    )
+    plt.title(f"Hierarchical Clustering Dendrogram Methylation Data")
+    plt.xlabel("Sample")
+    plt.ylabel("Distance (angle)")
+    plt.tight_layout()
+    plt.show()
     for params in dataset_params:
         generate_sample_histograms(params)
     sample_correlations()
