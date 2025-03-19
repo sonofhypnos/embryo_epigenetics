@@ -27,7 +27,7 @@ conda install -c bioconda bismark bedtools trim-galore sra-tools
 # Experiment I ran to compare correlation between different samples in the RRBS dataset
 # Log
 2025-03-19:
-Using short shell scripts like this example to transform oocyte data to hg38 to compare it with Oocyte data from the imprintome paper:
+Using short shell scripts like this example to transform oocyte data to hg38 to compare it with Oocyte data from the imprintome paper (Note this script depends on some files like hg19 to be in a specific place):
 
 ```sh
 # Convert WIG to bedGraph, sort, and perform liftOver
