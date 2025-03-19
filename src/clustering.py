@@ -324,4 +324,4 @@ def cluster_rna():
 
 # cluster_rrbs_weighted()
 cluster_rrbs()
-# cluster_rrbs_data(filtered_rna, metric="nan_euclidean", figure_dir=figure_dir)
+cluster_rna()

@@ -18,7 +18,7 @@ def cluster_data(data, datatype="rrbs"):
     # dist_matrix = pdist(data.T, metric="euclidean")
     dist_redundant = pairwise.nan_euclidean_distances(data.T)
     dist_matrix = squareform(dist_redundant)
-    linkage_matrix = linkage(dist_matrix, method="ward")
+    linkage_matrix = linkage(dist_matrix, method="average", metric="euclidean")
 
     # 4. Create visualization
     plt.figure(figsize=(12, 12))
