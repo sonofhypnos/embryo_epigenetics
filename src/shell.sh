@@ -1,4 +1,4 @@
-# Functions to import into shell if needed
+# Set up once in your shell or source file
 project_dir="/home/tassilo/embryo_epigenetics"
 chrom_sizes="$project_dir/data/hg19.chrom.sizes"
 
@@ -7,18 +7,25 @@ bed_to_bigbed() {
     local chrom_sizes="$2"
 
     if [[ ! -f "$input" || ! -f "$chrom_sizes" ]]; then
-        echo "Usage: bedgraph_to_bigbed <input.bedGraph|.bed> <chrom.sizes>" >&2
+        echo "Usage: bed_to_bigbed <input.bed> <chrom.sizes>" >&2
         return 1
     fi
 
-    local base="${input##*/}" # Strip path
-    local name="${base%%.*}"  # Strip extension
+    if ! command -v bedToBigBed &>/dev/null; then
+        echo "ERROR: 'bedToBigBed' not found in PATH. Is your conda env activated?" >&2
+        return 1
+    fi
+
+    local base="${input##*/}"
+    local name="${base%%.*}"
     local output="${name}.bb"
     echo "Converting $input to $output"
 
-    grep -v '^track' "$input" | sort -k1,1 -k2,2n >temp.bed
-    bedToBigBed temp.bed "$chrom_sizes" "$output"
-    rm temp.bed
+    local tmp
+    tmp=$(mktemp)
+    sort -k1,1 -k2,2n "$input" >"$tmp"
+    bedToBigBed "$tmp" "$chrom_sizes" "$output"
+    rm "$tmp"
 
     echo "Wrote output to $output"
 }
@@ -28,18 +35,26 @@ bed_to_bigwig() {
     local chrom_sizes="$2"
 
     if [[ ! -f "$input" || ! -f "$chrom_sizes" ]]; then
-        echo "Usage: bed_to_bigwig <input.bedGraph|.bed> <chrom.sizes>" >&2
+        echo "Usage: bed_to_bigwig <input.bedGraph> <chrom.sizes>" >&2
         return 1
     fi
 
-    local base="${input##*/}" # Strip path
-    local name="${base%%.*}"  # Strip extension
+    if ! command -v bedGraphToBigWig &>/dev/null; then
+        echo "ERROR: 'bedGraphToBigWig' not found in PATH. Is your conda env activated?" >&2
+        return 1
+    fi
+
+    local base="${input##*/}"
+    local name="${base%%.*}"
     local output="${name}.bw"
     echo "Converting $input to $output"
 
-    grep -v '^track' "$input" | sort -k1,1 -k2,2n >temp.bed
-    bedGraphToBigWig temp.bed "$chrom_sizes" "$output"
-    rm temp.bed
+    local tmp
+    tmp=$(mktemp)
+    sort -k1,1 -k2,2n "$input" >"$tmp"
+    bedGraphToBigWig "$tmp" "$chrom_sizes" "$output"
+    rm "$tmp"
 
     echo "Wrote output to $output"
 }
+
