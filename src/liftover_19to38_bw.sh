@@ -4,7 +4,7 @@
 #author         :Tassilo Neubauer
 #date           :20250320
 #version        :0.1
-#usage          :./liftover_bw.sh
+#usage          :./liftover_19to38_bw.sh
 #notes          :
 #bash_version   :5.1.16(1)-release
 #============================================================================
