@@ -12,6 +12,7 @@ conda create -n epi_env python bismark bedtools trim-galore sra-tools wiggletool
   - [ ] Optional: manually install igzip (./autoconf) (This worked, but there were like 4 steps inbetween where it would complain about some dependency not being installed, but installing them through apt just worked without any hiccups.)
 
 # Experiment I ran to compare correlation between different samples in the RRBS dataset
+
 # Log
 2025-03-19:
 Using short shell scripts like this example to transform oocyte data to hg38 to compare it with Oocyte data from the imprintome paper (Note this script depends on some files like hg19 to be in a specific place):
