@@ -18,8 +18,6 @@ conda create -n epi_env python bismark bedtools trim-galore sra-tools wiggletool
 - `src/clustering.py` is the script to cluster the bisulfite sequencing data from both the whole genome and from the wgbs and the rrbs data as well as the rrbs data from the supersox paper that should be saved under `/data/supersox/rrbs/`.
 - `src/cosine_similarity.py` runs cosine similarity between the wgbs, the rrbs and the supersox paper. New datasets can be added by adding an instance of the DatasetParams class to AllDatasetParams. It's then pretty easy to plot the dataset with the plotting functions (see the main function in `src/cosine_similarity.py`)
 
-# Experiment I ran to compare correlation between different samples in the RRBS dataset
-
 # Log
 2025-03-19:
 Using short shell scripts like this example to transform oocyte data to hg38 to compare it with Oocyte data from the imprintome paper (Note this script depends on some files like hg19 to be in a specific place):
